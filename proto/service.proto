@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package myko;
+
+option go_package = "github.com/mykodev/myko/proto/myko;mykopb";
+
+import "google/protobuf/timestamp.proto";
+
+service Service {
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  rpc InsertEvents(InsertEventsRequest) returns (InsertEventsResponse);
+  rpc DeleteEvents(DeleteEventsRequest) returns (DeleteEventsResponse);
+}
+
+message Event {
+    string name = 1;
+
+    reserved 2; // reserved for attributes
+
+    string unit = 3;
+
+    double value = 4;
+
+    google.protobuf.Timestamp created_at = 5;
+}
+
+message Entry {
+    string trace_id = 1;
+
+    string origin = 2;
+
+    repeated Event events = 3;
+}
+
+message ListEventsRequest {
+    string trace_id = 1;
+
+    string origin = 2;
+
+    string event = 3;
+}
+
+message ListEventsResponse {
+    repeated Event events = 1;
+}
+
+message InsertEventsRequest {
+    repeated Entry entries = 1;
+}
+
+message InsertEventsResponse {
+}
+
+message DeleteEventsRequest {
+    string trace_id = 1;
+
+    string origin = 2;
+
+    string event = 3;
+
+    // TODO: Allow deleting by retention window
+}
+
+message DeleteEventsResponse {
+}
