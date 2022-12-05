@@ -144,11 +144,14 @@ func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest)
 		return nil, err
 	}
 
-	if err := s.session.Query(`
-		DELETE
-		FROM events.data
-		` + filterCQL).Exec(); err != nil {
-		return nil, err
+	iter := s.session.Query(`SELECT id FROM events.data ` +
+		filterCQL + ` ALLOW FILTERING`).Iter()
+	var id gocql.UUID
+	for iter.Scan(&id) {
+		log.Printf("Deleting %q", id)
+		if err := s.session.Query(`DELETE FROM events.data WHERE id = ?`, id.String()).Exec(); err != nil {
+			return nil, err
+		}
 	}
 	return &pb.DeleteEventsResponse{}, nil
 }
