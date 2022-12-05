@@ -1,6 +1,7 @@
 package scylladb
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,6 +18,9 @@ type Options struct {
 }
 
 func NewSession(o Options) (sess *gocql.Session, err error) {
+	if len(o.Peers) == 0 {
+		return nil, errors.New("no peers given")
+	}
 	// TODO: Partition by date?
 	cluster := gocql.NewCluster(o.Peers...)
 	cluster.Timeout = o.DefaultTimeout
