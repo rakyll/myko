@@ -31,6 +31,12 @@ func NewSession(o Options) (sess *gocql.Session, err error) {
 		cluster.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(o.Datacenter)
 	}
 
+	if len(o.Peers) == 1 {
+		cluster.Consistency = gocql.LocalOne
+	} else {
+		cluster.Consistency = gocql.Quorum
+	}
+
 	sess, err = cluster.CreateSession()
 	if err != nil {
 		return nil, err
