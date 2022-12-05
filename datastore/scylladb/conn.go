@@ -69,4 +69,5 @@ var initCQLs = []string{
 	`CREATE INDEX IF NOT EXISTS traceIndex ON events.data ( trace_id );`,
 	`CREATE INDEX IF NOT EXISTS originIndex ON events.data ( origin );`,
 	`CREATE INDEX IF NOT EXISTS eventIndex ON events.data ( event );`,
+	`CREATE INDEX IF NOT EXISTS createdAtIndex ON events.data ( created_at );`,
 }
