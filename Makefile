@@ -4,3 +4,10 @@ build:
 
 bash:
 	docker run -it --entrypoint /bin/bash myko
+
+ecr-push: build
+	docker tag myko:latest public.ecr.aws/q1p8v8z2/myko:latest
+	docker push public.ecr.aws/q1p8v8z2/myko:latest
+
+ecr-login:
+	aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/q1p8v8z2
