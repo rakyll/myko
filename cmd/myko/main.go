@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/mykodev/myko/datastore/scylladb"
 	pb "github.com/mykodev/myko/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -33,7 +33,13 @@ func main() {
 	flag.DurationVar(&timeout, "timeout", 10*time.Second, "")
 	flag.Parse()
 
-	session, err := createDatastoreSession()
+	session, err := scylladb.NewSession(scylladb.Options{
+		Peers:          strings.Split(database, ","),
+		User:           databaseUser,
+		Password:       databasePassword,
+		Datacenter:     databaseDC,
+		DefaultTimeout: timeout,
+	})
 	if err != nil {
 		log.Fatalf("Failed to create a connection to datastore: %v", err)
 	}
@@ -48,7 +54,7 @@ type service struct {
 }
 
 func (s *service) ListEvents(ctx context.Context, req *pb.ListEventsRequest) (*pb.ListEventsResponse, error) {
-	filter := Filter{
+	filter := scylladb.Filter{
 		TraceID: req.TraceId,
 		Origin:  req.Origin,
 		Event:   req.Event,
@@ -128,7 +134,7 @@ func (s *service) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest)
 }
 
 func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) (*pb.DeleteEventsResponse, error) {
-	filter := Filter{
+	filter := scylladb.Filter{
 		TraceID: req.TraceId,
 		Origin:  req.Origin,
 		Event:   req.Event,
@@ -145,51 +151,6 @@ func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest)
 		return nil, err
 	}
 	return &pb.DeleteEventsResponse{}, nil
-}
-
-func createDatastoreSession() (sess *gocql.Session, err error) {
-	// TODO: Partition by date?
-	cluster := gocql.NewCluster(strings.Split(database, ",")...)
-	cluster.Timeout = timeout
-	if databaseUser != "" {
-		cluster.Authenticator = gocql.PasswordAuthenticator{Username: databaseUser, Password: databasePassword}
-	}
-	if databaseDC != "" {
-		cluster.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(databaseDC)
-	}
-
-	sess, err = cluster.CreateSession()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, q := range initCQLs {
-		if err = sess.Query(q).Exec(); err != nil {
-			return nil, fmt.Errorf("Failed to run %q: %v", q, err)
-		}
-	}
-	return sess, nil
-}
-
-var initCQLs = []string{
-	// TODO: Choose a migration tool before the release.
-	`CREATE KEYSPACE IF NOT EXISTS events
-		WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3}
-		AND durable_writes = true;`,
-	`CREATE TABLE IF NOT EXISTS events.data (
-		id uuid primary key, 
-		trace_id text,
-		origin text,
-		attr_key text,
-		attr_value text,
-		event text,
-		unit text, 
-		value double,
-		created_at timestamp
-	);`,
-	`CREATE INDEX IF NOT EXISTS traceIndex ON events.data ( trace_id );`,
-	`CREATE INDEX IF NOT EXISTS originIndex ON events.data ( origin );`,
-	`CREATE INDEX IF NOT EXISTS eventIndex ON events.data ( event );`,
 }
 
 type eventSorter struct {

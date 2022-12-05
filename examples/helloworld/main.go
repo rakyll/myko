@@ -68,7 +68,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to list events: %v", err)
 	}
-
 	for _, item := range resp.Events {
 		fmt.Printf("%v: %v%v\n", item.Name, item.Value, item.Unit)
 	}
