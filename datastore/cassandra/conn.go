@@ -1,4 +1,4 @@
-package scylladb
+package cassandra
 
 import (
 	"errors"

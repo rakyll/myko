@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
-	"github.com/mykodev/myko/datastore/scylladb"
+	"github.com/mykodev/myko/datastore/cassandra"
 	pb "github.com/mykodev/myko/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -20,24 +20,24 @@ var (
 	database         string // comma separated list of peers
 	databaseUser     string
 	databasePassword string
-	databaseDC       string
+	datacenter       string
 	timeout          time.Duration
 )
 
 func main() {
 	flag.StringVar(&listen, "listen", ":6959", "")
-	flag.StringVar(&database, "scylladb", "localhost:9043", "")
-	flag.StringVar(&databaseUser, "scylladb-user", "", "")
-	flag.StringVar(&databasePassword, "scylladb-passwd", "", "")
-	flag.StringVar(&databaseDC, "scylladb-dc", "", "")
+	flag.StringVar(&database, "cassandra", "localhost:9043", "")
+	flag.StringVar(&databaseUser, "cassandra-user", "", "")
+	flag.StringVar(&databasePassword, "cassandra-passwd", "", "")
+	flag.StringVar(&datacenter, "datacenter", "", "")
 	flag.DurationVar(&timeout, "timeout", 10*time.Second, "")
 	flag.Parse()
 
-	session, err := scylladb.NewSession(scylladb.Options{
+	session, err := cassandra.NewSession(cassandra.Options{
 		Peers:          strings.Split(database, ","),
 		User:           databaseUser,
 		Password:       databasePassword,
-		Datacenter:     databaseDC,
+		Datacenter:     datacenter,
 		DefaultTimeout: timeout,
 	})
 	if err != nil {
@@ -54,7 +54,7 @@ type service struct {
 }
 
 func (s *service) ListEvents(ctx context.Context, req *pb.ListEventsRequest) (*pb.ListEventsResponse, error) {
-	filter := scylladb.Filter{
+	filter := cassandra.Filter{
 		TraceID: req.TraceId,
 		Origin:  req.Origin,
 		Event:   req.Event,
@@ -134,7 +134,7 @@ func (s *service) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest)
 }
 
 func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) (*pb.DeleteEventsResponse, error) {
-	filter := scylladb.Filter{
+	filter := cassandra.Filter{
 		TraceID: req.TraceId,
 		Origin:  req.Origin,
 		Event:   req.Event,
