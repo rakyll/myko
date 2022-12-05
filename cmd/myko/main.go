@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -45,12 +46,17 @@ func main() {
 	}
 
 	log.Printf("Starting the myko server at %q...", listen)
-	server := pb.NewServiceServer(&service{session: session}, nil)
+	server := pb.NewServiceServer(
+		&service{
+			session:     session,
+			batchWriter: newBatchWriter(session, 100),
+		}, nil)
 	log.Fatal(http.ListenAndServe(listen, server))
 }
 
 type service struct {
-	session *gocql.Session
+	session     *gocql.Session
+	batchWriter *batchWriter
 }
 
 func (s *service) ListEvents(ctx context.Context, req *pb.ListEventsRequest) (*pb.ListEventsResponse, error) {
@@ -110,25 +116,10 @@ func (s *service) ListEvents(ctx context.Context, req *pb.ListEventsRequest) (*p
 }
 
 func (s *service) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) (*pb.InsertEventsResponse, error) {
-	batch := s.session.NewBatch(gocql.UnloggedBatch)
 	for _, entry := range req.Entries {
-		for _, e := range entry.Events {
-			id, err := gocql.RandomUUID()
-			if err != nil {
-				return nil, err
-			}
-			if !e.CreatedAt.IsValid() {
-				e.CreatedAt = timestamppb.Now()
-			}
-			batch.Query(`
-			INSERT INTO events.data 
-			(id, trace_id, origin, event, value, unit, created_at)
-			VALUES ( ?, ?, ?, ?, ?, ?, ? )`,
-				id.String(), entry.TraceId, entry.Origin, e.Name, e.Value, e.Unit, e.CreatedAt.AsTime())
+		if err := s.batchWriter.Write(entry); err != nil {
+			return nil, err
 		}
-	}
-	if err := s.session.ExecuteBatch(batch); err != nil {
-		return nil, err
 	}
 	return &pb.InsertEventsResponse{}, nil
 }
@@ -154,6 +145,72 @@ func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest)
 		}
 	}
 	return &pb.DeleteEventsResponse{}, nil
+}
+
+func newBatchWriter(session *gocql.Session, n int) *batchWriter {
+	return &batchWriter{
+		n:       n,
+		events:  make(map[string]*pb.Event, n),
+		session: session,
+	}
+}
+
+type batchWriter struct {
+	mu      sync.Mutex
+	n       int
+	events  map[string]*pb.Event // by origin and trace_id
+	session *gocql.Session
+}
+
+func (b *batchWriter) key(origin, traceID, name, unit string) string {
+	return origin + ":" + traceID + ":" + name + ":" + unit
+}
+
+func (b *batchWriter) parseKey(key string) (origin, traceID, name, unit string) {
+	v := strings.Split(key, ":")
+	return v[0], v[1], v[2], v[3]
+}
+
+func (b *batchWriter) Write(e *pb.Entry) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for _, event := range e.Events {
+		key := b.key(e.Origin, e.TraceId, event.Name, event.Unit)
+		v, ok := b.events[key]
+		if !ok {
+			b.events[key] = event
+		} else {
+			v.Value += event.Value
+			b.events[key] = v
+		}
+	}
+
+	if len(b.events) > b.n {
+		log.Printf("Batch writing %d records", len(b.events))
+		batch := b.session.NewBatch(gocql.UnloggedBatch)
+		for key, e := range b.events {
+			origin, traceID, name, unit := b.parseKey(key)
+
+			id, err := gocql.RandomUUID()
+			if err != nil {
+				return err
+			}
+			if !e.CreatedAt.IsValid() {
+				e.CreatedAt = timestamppb.Now()
+			}
+			batch.Query(`
+				INSERT INTO events.data 
+				(id, trace_id, origin, event, value, unit, created_at)
+				VALUES ( ?, ?, ?, ?, ?, ?, ? )`,
+				id.String(), origin, traceID, name, e.Value, unit, time.Now())
+		}
+		if err := b.session.ExecuteBatch(batch); err != nil {
+			return err
+		}
+		b.events = make(map[string]*pb.Event, b.n)
+	}
+	return nil
 }
 
 type eventSorter struct {
