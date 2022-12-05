@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -14,7 +16,11 @@ var (
 	op     string
 	n      int
 	events int
+
+	random = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
+
+const benchmarkOrigin = "__reserved_myko_benchmark_origin"
 
 func main() {
 	ctx := context.Background()
@@ -28,6 +34,8 @@ func main() {
 	switch op {
 	case "insert":
 		benchmarkInserts(ctx, client)
+	case "cleanup":
+		cleanup(ctx, client)
 	default:
 		log.Fatalf("unknown benchmark op")
 	}
@@ -38,12 +46,12 @@ func benchmarkInserts(ctx context.Context, client pb.Service) {
 	for i := 0; i < events; i++ {
 		entries = append(entries, &pb.Entry{
 			TraceId: "",
-			Origin:  "test_origin",
+			Origin:  benchmarkOrigin,
 			Events: []*pb.Event{
 				{
-					Name:  "event_1",
-					Unit:  "unit",
-					Value: 12.5,
+					Name:  fmt.Sprintf("event%d", random.Intn(20)),
+					Unit:  fmt.Sprintf("unit_%d", random.Intn(5)),
+					Value: random.Float64(),
 				},
 			},
 		})
@@ -59,5 +67,14 @@ func benchmarkInserts(ctx context.Context, client pb.Service) {
 		} else {
 			log.Printf("Insert errored with %v", err)
 		}
+	}
+}
+
+func cleanup(ctx context.Context, client pb.Service) {
+	_, err := client.DeleteEvents(ctx, &pb.DeleteEventsRequest{
+		Origin: benchmarkOrigin,
+	})
+	if err != nil {
+		log.Fatalf("Failed to cleanup: %v", err)
 	}
 }
