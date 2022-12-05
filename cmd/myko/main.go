@@ -147,7 +147,7 @@ func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest)
 	if err := s.session.Query(`
 		DELETE
 		FROM events.data
-		` + filterCQL + ` ALLOW FILTERING`).Exec(); err != nil {
+		` + filterCQL).Exec(); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteEventsResponse{}, nil
