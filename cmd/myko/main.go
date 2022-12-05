@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -49,25 +48,20 @@ type service struct {
 }
 
 func (s *service) ListEvents(ctx context.Context, req *pb.ListEventsRequest) (*pb.ListEventsResponse, error) {
-	if req.TraceId == "" && req.Origin == "" && req.Event == "" {
-		return nil, errors.New("no trace_id, origin or event")
+	filter := Filter{
+		TraceID: req.TraceId,
+		Origin:  req.Origin,
+		Event:   req.Event,
 	}
-
-	var filters []string
-	if req.TraceId != "" {
-		filters = append(filters, fmt.Sprintf("trace_id = '%v'", req.TraceId))
-	}
-	if req.Origin != "" {
-		filters = append(filters, fmt.Sprintf("origin = '%v'", req.Origin))
-	}
-	if req.Event != "" {
-		filters = append(filters, fmt.Sprintf("event = '%v'", req.Event))
+	filterCQL, err := filter.CQL()
+	if err != nil {
+		return nil, err
 	}
 
 	iter := s.session.Query(`
 		SELECT origin, event, value, unit
 		FROM events.data
-		WHERE ` + strings.Join(filters, " AND ") + ` ALLOW FILTERING`).Iter()
+		` + filterCQL + ` ALLOW FILTERING`).Iter()
 
 	var (
 		origin string
@@ -133,11 +127,28 @@ func (s *service) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest)
 	return &pb.InsertEventsResponse{}, nil
 }
 
-func (s *service) DeleteEvents(context.Context, *pb.DeleteEventsRequest) (*pb.DeleteEventsResponse, error) {
-	panic("not implemented")
+func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) (*pb.DeleteEventsResponse, error) {
+	filter := Filter{
+		TraceID: req.TraceId,
+		Origin:  req.Origin,
+		Event:   req.Event,
+	}
+	filterCQL, err := filter.CQL()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.session.Query(`
+		DELETE
+		FROM events.data
+		` + filterCQL + ` ALLOW FILTERING`).Exec(); err != nil {
+		return nil, err
+	}
+	return &pb.DeleteEventsResponse{}, nil
 }
 
 func createDatastoreSession() (sess *gocql.Session, err error) {
+	// TODO: Partition by date?
 	cluster := gocql.NewCluster(strings.Split(database, ",")...)
 	cluster.Timeout = timeout
 	if databaseUser != "" {
@@ -161,6 +172,7 @@ func createDatastoreSession() (sess *gocql.Session, err error) {
 }
 
 var initCQLs = []string{
+	// TODO: Choose a migration tool before the release.
 	`CREATE KEYSPACE IF NOT EXISTS events
 		WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3}
 		AND durable_writes = true;`,
