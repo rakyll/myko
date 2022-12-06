@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	op               string
-	n                int
-	events           int
-	eventCardinality int
-	unitCardinality  int
+	op                 string
+	n                  int
+	events             int
+	traceIDCardinality int
+	eventCardinality   int
+	unitCardinality    int
 
 	random = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
@@ -30,6 +31,7 @@ func main() {
 	flag.StringVar(&op, "op", "insert", "")
 	flag.IntVar(&n, "n", 1000, "")
 	flag.IntVar(&events, "events", 10, "")
+	flag.IntVar(&traceIDCardinality, "trace-id-cardinality", 100, "")
 	flag.IntVar(&eventCardinality, "event-cardinality", 20, "")
 	flag.IntVar(&unitCardinality, "unit-cardinality", 10, "")
 	flag.Parse()
@@ -49,7 +51,7 @@ func benchmarkInserts(ctx context.Context, client pb.Service) {
 	var entries []*pb.Entry
 	for i := 0; i < events; i++ {
 		entries = append(entries, &pb.Entry{
-			TraceId: "",
+			TraceId: fmt.Sprintf("trace_%d", random.Intn(traceIDCardinality)),
 			Origin:  benchmarkOrigin,
 			Events: []*pb.Event{
 				{
