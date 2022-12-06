@@ -12,6 +12,7 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/mykodev/myko/datastore/cassandra"
+	"github.com/mykodev/myko/format"
 	pb "github.com/mykodev/myko/proto"
 )
 
@@ -118,6 +119,7 @@ func (s *service) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryRes
 
 func (s *service) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) (*pb.InsertEventsResponse, error) {
 	for _, entry := range req.Entries {
+		entry = format.Espace(entry)
 		if err := s.batchWriter.Write(entry); err != nil {
 			return nil, err
 		}
