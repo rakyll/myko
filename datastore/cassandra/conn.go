@@ -3,35 +3,26 @@ package cassandra
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/mykodev/myko/config"
 )
 
-type Options struct {
-	Peers      []string
-	User       string
-	Password   string
-	Datacenter string
-
-	DefaultTimeout time.Duration
-}
-
-func NewSession(o Options) (sess *gocql.Session, err error) {
-	if len(o.Peers) == 0 {
+func NewSession(c *config.CassandraConfig) (sess *gocql.Session, err error) {
+	if len(c.Peers) == 0 {
 		return nil, errors.New("no peers given")
 	}
 	// TODO: Partition by date?
-	cluster := gocql.NewCluster(o.Peers...)
-	cluster.Timeout = o.DefaultTimeout
-	if o.User != "" {
-		cluster.Authenticator = gocql.PasswordAuthenticator{Username: o.User, Password: o.Password}
+	cluster := gocql.NewCluster(c.Peers...)
+	cluster.Timeout = c.Timeout
+	if c.Username != "" {
+		cluster.Authenticator = gocql.PasswordAuthenticator{Username: c.Username, Password: c.Password}
 	}
-	if o.Datacenter != "" {
-		cluster.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(o.Datacenter)
+	if c.Datacenter != "" {
+		cluster.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(c.Datacenter)
 	}
 
-	if len(o.Peers) == 1 {
+	if len(c.Peers) == 1 {
 		cluster.Consistency = gocql.LocalOne
 	} else {
 		cluster.Consistency = gocql.Quorum

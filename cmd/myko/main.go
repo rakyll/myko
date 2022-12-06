@@ -11,49 +11,47 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/mykodev/myko/config"
 	"github.com/mykodev/myko/datastore/cassandra"
 	"github.com/mykodev/myko/format"
 	pb "github.com/mykodev/myko/proto"
 )
 
-var (
-	listen           string
-	database         string // comma separated list of peers
-	databaseUser     string
-	databasePassword string
-	datacenter       string
-	timeout          time.Duration
-	flushDuration    time.Duration
-)
+var configFile string
 
 func main() {
-	flag.StringVar(&listen, "listen", ":6959", "")
-	flag.StringVar(&database, "cassandra", "localhost:9042", "")
-	flag.StringVar(&databaseUser, "cassandra-user", "", "")
-	flag.StringVar(&databasePassword, "cassandra-passwd", "", "")
-	flag.StringVar(&datacenter, "datacenter", "", "")
-	flag.DurationVar(&timeout, "timeout", 10*time.Second, "")
-	flag.DurationVar(&flushDuration, "flush-every", 5*time.Second, "")
+	flag.StringVar(&configFile, "config", "", "")
 	flag.Parse()
 
-	session, err := cassandra.NewSession(cassandra.Options{
-		Peers:          strings.Split(database, ","),
-		User:           databaseUser,
-		Password:       databasePassword,
-		Datacenter:     datacenter,
-		DefaultTimeout: timeout,
-	})
+	var serverConfig *config.Config
+	if configFile == "" {
+		serverConfig = config.DefaultConfig()
+	} else {
+		cfg, err := config.Open(configFile)
+		if err != nil {
+			log.Fatalf("Failed to open and parse config file: %v", err)
+		}
+		serverConfig = cfg
+	}
+
+	cassandraConfig := serverConfig.DataConfig.CassandraConfig
+	if cassandraConfig == nil {
+		// TODO: Allow other data stores in the future.
+		log.Fatalf("No cassandra config provided")
+	}
+
+	session, err := cassandra.NewSession(cassandraConfig)
 	if err != nil {
 		log.Fatalf("Failed to create a connection to datastore: %v", err)
 	}
 
-	log.Printf("Starting the myko server at %q...", listen)
+	log.Printf("Starting the myko server at %q...", serverConfig.Listen)
 	server := pb.NewServiceServer(
 		&service{
 			session:     session,
-			batchWriter: newBatchWriter(session, 100),
+			batchWriter: newBatchWriter(session, 100, serverConfig.FlushConfig.Interval),
 		}, nil)
-	log.Fatal(http.ListenAndServe(listen, server))
+	log.Fatal(http.ListenAndServe(serverConfig.Listen, server))
 }
 
 type service struct {
@@ -150,12 +148,13 @@ func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest)
 	return &pb.DeleteEventsResponse{}, nil
 }
 
-func newBatchWriter(session *gocql.Session, n int) *batchWriter {
+func newBatchWriter(session *gocql.Session, n int, flushInterval time.Duration) *batchWriter {
 	// TODO: Implement an optional WAL.
 	return &batchWriter{
-		n:       n,
-		session: session,
-		events:  make(map[string]*pb.Event, n),
+		session:       session,
+		n:             n,
+		flushInterval: flushInterval,
+		events:        make(map[string]*pb.Event, n),
 	}
 }
 
@@ -164,8 +163,9 @@ type batchWriter struct {
 	events     map[string]*pb.Event
 	lastExport time.Time
 
-	n       int
-	session *gocql.Session
+	n             int
+	flushInterval time.Duration
+	session       *gocql.Session
 }
 
 func (b *batchWriter) key(origin, traceID, name, unit string) string {
@@ -196,7 +196,7 @@ func (b *batchWriter) Write(e *pb.Entry) error {
 
 func (b *batchWriter) flushIfNeeded() error {
 	// flushIfNeeded need to be called from Write.
-	if len(b.events) > b.n || b.lastExport.Before(time.Now().Add(-1*flushDuration)) {
+	if len(b.events) > b.n || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
 		log.Printf("Batch writing %d records", len(b.events))
 		batch := b.session.NewBatch(gocql.LoggedBatch)
 		for key, e := range b.events {
