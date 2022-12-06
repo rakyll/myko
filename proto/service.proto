@@ -15,8 +15,6 @@ service Service {
 message Event {
     string name = 1;
 
-    reserved 2; // reserved for attributes
-
     string unit = 3;
 
     double value = 4;
@@ -27,7 +25,9 @@ message Entry {
 
     string origin = 2;
 
-    repeated Event events = 3;
+    reserved 3; // reserved for attributes
+
+    repeated Event events = 4;
 }
 
 message QueryRequest {
