@@ -20,8 +20,6 @@ message Event {
     string unit = 3;
 
     double value = 4;
-
-    google.protobuf.Timestamp created_at = 5;
 }
 
 message Entry {
