@@ -10,7 +10,6 @@ import (
 )
 
 func main() {
-
 	ctx := context.Background()
 
 	const traceID = "0af7651916cd43dd8448eb211c80319c"
