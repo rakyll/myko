@@ -36,10 +36,6 @@ func New(cfg config.Config) (*Server, error) {
 	return server, nil
 }
 
-func (s *Server) tableName(t string) string {
-	return s.keyspace + "." + t
-}
-
 func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResponse, error) {
 	filter := cassandra.Filter{
 		TraceID: req.TraceId,
