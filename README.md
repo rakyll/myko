@@ -56,6 +56,7 @@ myko ingests the events and can report:
 
 See the [examples](tree/main/examples) directory for example programs.
 
+
 ## FAQ
 
 **Why did you create myko?**
@@ -80,12 +81,12 @@ attributes, thousands of events can be aggregated to a few data points.
 
 **How is myko different than distributed tracing systems?**
 
-myko is not a distributed tracing system. It doesn't store any distributed spans.
+myko is not a distributed tracing system. It doesn't store distributed trace spans.
 We expect myko to be used together with distributed tracing systems. We accept
-a trace ID in case users want to correlate their traces with myko outputs.
+a trace ID in cases where users want to correlate their traces with myko data.
 We recommend ingesting trace ID only for debugging purposes or if the traces
 are aggressively downsampled. Trace IDs can increase the cardinality significantly
-and can have performance regressions on querying at this moment.
+and can cause performance regressions when querying.
 
 **Does myko have any cardinality limits?**
 
