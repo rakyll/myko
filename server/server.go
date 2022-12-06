@@ -118,7 +118,7 @@ func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) 
 		return nil, err
 	}
 
-	q, err := s.session.Query(`SELECT id FROM {{.Keyspace}}.{{.Table}} ` + filterCQL + ` ALLOW FILTERING`)
+	q, err := s.session.Query(`SELECT id FROM {{.Keyspace}}.events ` + filterCQL + ` ALLOW FILTERING`)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) 
 	for q.Iter().Scan(&id) {
 		log.Printf("Deleting %q", id)
 
-		q, err := s.session.Query(`DELETE FROM {{.Keyspace}}.{{.Table}} WHERE = ?`, id)
+		q, err := s.session.Query(`DELETE FROM {{.Keyspace}}.events WHERE = ?`, id)
 		if err != nil {
 			return nil, err
 		}
