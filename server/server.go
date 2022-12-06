@@ -198,7 +198,7 @@ func (b *batchWriter) flushIfNeeded() error {
 				return err
 			}
 			if err := batch.Query(`
-				INSERT INTO `+b.server.tableName("events")+`
+				INSERT INTO {{.Keyspace}}.events
 				(id, trace_id, origin, event, value, unit, created_at)
 				VALUES ( ?, ?, ?, ?, ?, ?, ? )`,
 				id.String(), origin, traceID, name, e.Value, unit, time.Now()); err != nil {
