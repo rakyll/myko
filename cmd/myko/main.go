@@ -16,7 +16,7 @@ func main() {
 	flag.StringVar(&configFile, "config", "", "")
 	flag.Parse()
 
-	var serverConfig *config.Config
+	var serverConfig config.Config
 	if configFile == "" {
 		serverConfig = config.DefaultConfig()
 	} else {

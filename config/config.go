@@ -10,32 +10,33 @@ import (
 type Config struct {
 	Listen string `yaml:"listen"`
 
-	DataConfig *DataConfig `yaml:"data"`
+	DataConfig DataConfig `yaml:"data"`
 
-	FlushConfig *FlushConfig `yaml:"flush"`
+	FlushConfig FlushConfig `yaml:"flush"`
 }
 
-func DefaultConfig() *Config {
-	return &Config{
-		Listen:      ":6959",
-		DataConfig:  DefaultDataConfig(),
-		FlushConfig: DefaultFlushConfig(),
-	}
-}
-
-type DataConfig struct {
-	CassandraConfig *CassandraConfig `yaml:"cassandra"`
-}
-
-func DefaultDataConfig() *DataConfig {
-	return &DataConfig{
-		CassandraConfig: &CassandraConfig{
-			Peers: []string{"localhost:9042"},
+func DefaultConfig() Config {
+	return Config{
+		Listen: ":6959",
+		DataConfig: DataConfig{
+			CassandraConfig: CassandraConfig{
+				Keyspace: "events",
+				Peers:    []string{"localhost:9042"},
+			},
+		},
+		FlushConfig: FlushConfig{
+			Interval: 5 * time.Second,
 		},
 	}
 }
 
+type DataConfig struct {
+	CassandraConfig CassandraConfig `yaml:"cassandra"`
+}
+
 type CassandraConfig struct {
+	Keyspace string `yaml:"keyspace,omitempty"`
+
 	Peers []string `yaml:"peers,omitempty"`
 
 	Username string `yaml:"username,omitempty"`
@@ -48,37 +49,19 @@ type CassandraConfig struct {
 }
 
 type FlushConfig struct {
-	Interval time.Duration `yaml:"interval,omitempty"`
+	Interval time.Duration `yaml:"interval"`
 }
 
-func DefaultFlushConfig() *FlushConfig {
-	return &FlushConfig{
-		Interval: 5 * time.Second,
-	}
-}
-
-func Open(path string) (*Config, error) {
+func Open(path string) (Config, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 	defer f.Close()
 
-	defaultConfig := DefaultConfig()
-
-	var config Config
+	config := DefaultConfig()
 	if err := yaml.NewDecoder(f).Decode(&config); err != nil {
-		return nil, err
+		return Config{}, err
 	}
-
-	if config.Listen == "" {
-		config.Listen = defaultConfig.Listen
-	}
-	if config.DataConfig == nil {
-		config.DataConfig = defaultConfig.DataConfig
-	}
-	if config.FlushConfig == nil {
-		config.FlushConfig = defaultConfig.FlushConfig
-	}
-	return &config, nil
+	return config, nil
 }

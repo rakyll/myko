@@ -17,24 +17,27 @@ import (
 )
 
 type Server struct {
-	session     *gocql.Session
+	keyspace    string
+	session     *cassandra.Session
 	batchWriter *batchWriter
 }
 
-func New(cfg *config.Config) (*Server, error) {
+func New(cfg config.Config) (*Server, error) {
 	cassandraConfig := cfg.DataConfig.CassandraConfig
-	if cassandraConfig == nil {
-		// TODO: Allow other data stores in the future.
-		log.Fatalf("No cassandra config provided")
-	}
 	session, err := cassandra.NewSession(cassandraConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &Server{
-		session:     session,
-		batchWriter: newBatchWriter(session, 100, cfg.FlushConfig.Interval),
-	}, nil
+	server := &Server{
+		keyspace: cassandraConfig.Keyspace,
+		session:  session,
+	}
+	server.batchWriter = newBatchWriter(server, 100, cfg.FlushConfig.Interval)
+	return server, nil
+}
+
+func (s *Server) tableName(t string) string {
+	return s.keyspace + "." + t
 }
 
 func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResponse, error) {
@@ -48,10 +51,12 @@ func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResp
 		return nil, err
 	}
 
-	iter := s.session.Query(`
-		SELECT origin, event, value, unit
-		FROM events.data
-		` + filterCQL + ` ALLOW FILTERING`).Iter()
+	q, err := s.session.Query(`
+		SELECT origin, event, value, unit 
+		FROM {{.Keyspace}}.events ` + filterCQL + ` ALLOW FILTERING`)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		origin string
@@ -65,7 +70,7 @@ func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResp
 	}
 
 	v := make(map[string]*pb.Event)
-	for iter.Scan(&origin, &name, &value, &unit) {
+	for q.Iter().Scan(&origin, &name, &value, &unit) {
 		k := key(origin, name, unit)
 		event, ok := v[k]
 		if ok {
@@ -95,8 +100,7 @@ func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResp
 
 func (s *Server) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) (*pb.InsertEventsResponse, error) {
 	for _, entry := range req.Entries {
-		entry = format.Espace(entry)
-		if err := s.batchWriter.Write(entry); err != nil {
+		if err := s.batchWriter.Write(format.Espace(entry)); err != nil {
 			return nil, err
 		}
 	}
@@ -114,22 +118,30 @@ func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) 
 		return nil, err
 	}
 
-	iter := s.session.Query(`SELECT id FROM events.data ` +
-		filterCQL + ` ALLOW FILTERING`).Iter()
+	q, err := s.session.Query(`SELECT id FROM {{.Keyspace}}.{{.Table}} ` + filterCQL + ` ALLOW FILTERING`)
+	if err != nil {
+		return nil, err
+	}
+
 	var id gocql.UUID
-	for iter.Scan(&id) {
+	for q.Iter().Scan(&id) {
 		log.Printf("Deleting %q", id)
-		if err := s.session.Query(`DELETE FROM events.data WHERE id = ?`, id.String()).Exec(); err != nil {
+
+		q, err := s.session.Query(`DELETE FROM {{.Keyspace}}.{{.Table}} WHERE = ?`, id)
+		if err != nil {
+			return nil, err
+		}
+		if err := q.Exec(); err != nil {
 			return nil, err
 		}
 	}
 	return &pb.DeleteEventsResponse{}, nil
 }
 
-func newBatchWriter(session *gocql.Session, n int, flushInterval time.Duration) *batchWriter {
+func newBatchWriter(server *Server, n int, flushInterval time.Duration) *batchWriter {
 	// TODO: Implement an optional WAL.
 	return &batchWriter{
-		session:       session,
+		server:        server,
 		n:             n,
 		flushInterval: flushInterval,
 		events:        make(map[string]*pb.Event, n),
@@ -143,7 +155,7 @@ type batchWriter struct {
 
 	n             int
 	flushInterval time.Duration
-	session       *gocql.Session
+	server        *Server
 }
 
 func (b *batchWriter) key(origin, traceID, name, unit string) string {
@@ -176,7 +188,8 @@ func (b *batchWriter) flushIfNeeded() error {
 	// flushIfNeeded need to be called from Write.
 	if len(b.events) > b.n || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
 		log.Printf("Batch writing %d records", len(b.events))
-		batch := b.session.NewBatch(gocql.LoggedBatch)
+
+		batch := b.server.session.NewBatch(gocql.LoggedBatch)
 		for key, e := range b.events {
 			origin, traceID, name, unit := b.parseKey(key)
 
@@ -184,13 +197,15 @@ func (b *batchWriter) flushIfNeeded() error {
 			if err != nil {
 				return err
 			}
-			batch.Query(`
-				INSERT INTO events.data 
+			if err := batch.Query(`
+				INSERT INTO `+b.server.tableName("events")+`
 				(id, trace_id, origin, event, value, unit, created_at)
 				VALUES ( ?, ?, ?, ?, ?, ?, ? )`,
-				id.String(), origin, traceID, name, e.Value, unit, time.Now())
+				id.String(), origin, traceID, name, e.Value, unit, time.Now()); err != nil {
+				return err
+			}
 		}
-		if err := b.session.ExecuteBatch(batch); err != nil {
+		if err := b.server.session.ExecuteBatch(batch); err != nil {
 			return err
 		}
 		b.events = make(map[string]*pb.Event, b.n)
