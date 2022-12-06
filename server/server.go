@@ -48,26 +48,21 @@ func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResp
 	}
 
 	q, err := s.session.Query(`
-		SELECT origin, event, value, unit 
+		SELECT event, value, unit 
 		FROM {{.Keyspace}}.events ` + filterCQL + ` ALLOW FILTERING`)
 	if err != nil {
 		return nil, err
 	}
 
 	var (
-		origin string
-		name   string
-		unit   string
-		value  float64
+		name  string
+		unit  string
+		value float64
 	)
 
-	key := func(origin, event, unit string) string {
-		return origin + ":" + event + ":" + unit
-	}
-
 	v := make(map[string]*pb.Event)
-	for q.Iter().Scan(&origin, &name, &value, &unit) {
-		k := key(origin, name, unit)
+	for q.Iter().Scan(&name, &value, &unit) {
+		k := key(req.TraceId, req.Origin, name, unit)
 		event, ok := v[k]
 		if ok {
 			event.Value += value
@@ -154,21 +149,12 @@ type batchWriter struct {
 	server        *Server
 }
 
-func (b *batchWriter) key(origin, traceID, name, unit string) string {
-	return origin + ":" + traceID + ":" + name + ":" + unit
-}
-
-func (b *batchWriter) parseKey(key string) (origin, traceID, name, unit string) {
-	v := strings.Split(key, ":")
-	return v[0], v[1], v[2], v[3]
-}
-
 func (b *batchWriter) Write(e *pb.Entry) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	for _, event := range e.Events {
-		key := b.key(e.Origin, e.TraceId, event.Name, event.Unit)
+		key := key(e.Origin, e.TraceId, event.Name, event.Unit)
 		v, ok := b.events[key]
 		if !ok {
 			b.events[key] = event
@@ -185,9 +171,9 @@ func (b *batchWriter) flushIfNeeded() error {
 	if len(b.events) > b.n || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
 		log.Printf("Batch writing %d records", len(b.events))
 
-		batch := b.server.session.NewBatch(gocql.LoggedBatch)
+		batch := b.server.session.NewBatch(gocql.UnloggedBatch)
 		for key, e := range b.events {
-			origin, traceID, name, unit := b.parseKey(key)
+			origin, traceID, name, unit := parseKey(key)
 
 			id, err := gocql.RandomUUID()
 			if err != nil {
@@ -202,6 +188,7 @@ func (b *batchWriter) flushIfNeeded() error {
 			}
 		}
 		if err := b.server.session.ExecuteBatch(batch); err != nil {
+			// TODO: Retry and drop the samples if retries fail.
 			return err
 		}
 		b.events = make(map[string]*pb.Event, b.n)
@@ -224,4 +211,13 @@ func (s *eventSorter) Less(i, j int) bool {
 
 func (s *eventSorter) Swap(i, j int) {
 	s.events[i], s.events[j] = s.events[j], s.events[i]
+}
+
+func key(origin, traceID, name, unit string) string {
+	return origin + ":" + traceID + ":" + name + ":" + unit
+}
+
+func parseKey(key string) (origin, traceID, name, unit string) {
+	v := strings.Split(key, ":")
+	return v[0], v[1], v[2], v[3]
 }
