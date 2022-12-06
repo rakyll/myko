@@ -22,6 +22,7 @@ func DefaultConfig() Config {
 			CassandraConfig: CassandraConfig{
 				Keyspace: "myko",
 				Peers:    []string{"localhost:9042"},
+				Timeout:  30 * time.Second,
 			},
 		},
 		FlushConfig: FlushConfig{
