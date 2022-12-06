@@ -201,7 +201,7 @@ func (b *batchWriter) flushIfNeeded() error {
 				INSERT INTO {{.Keyspace}}.events
 				(id, trace_id, origin, event, value, unit, created_at)
 				VALUES ( ?, ?, ?, ?, ?, ?, ? )`,
-				id.String(), origin, traceID, name, e.Value, unit, time.Now()); err != nil {
+				id.String(), traceID, origin, name, e.Value, unit, time.Now()); err != nil {
 				return err
 			}
 		}
