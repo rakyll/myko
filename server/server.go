@@ -127,7 +127,7 @@ func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) 
 	for q.Iter().Scan(&id) {
 		log.Printf("Deleting %q", id)
 
-		q, err := s.session.Query(`DELETE FROM {{.Keyspace}}.events WHERE = ?`, id)
+		q, err := s.session.Query(`DELETE FROM {{.Keyspace}}.events WHERE = id ?`, id)
 		if err != nil {
 			return nil, err
 		}
