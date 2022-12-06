@@ -27,7 +27,7 @@ var (
 
 func main() {
 	flag.StringVar(&listen, "listen", ":6959", "")
-	flag.StringVar(&database, "cassandra", "localhost:9043", "")
+	flag.StringVar(&database, "cassandra", "localhost:9042", "")
 	flag.StringVar(&databaseUser, "cassandra-user", "", "")
 	flag.StringVar(&databasePassword, "cassandra-passwd", "", "")
 	flag.StringVar(&datacenter, "datacenter", "", "")
