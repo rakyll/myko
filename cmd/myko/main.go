@@ -149,6 +149,7 @@ func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest)
 }
 
 func newBatchWriter(session *gocql.Session, n int) *batchWriter {
+	// TODO: Implement an optional WAL.
 	return &batchWriter{
 		n:       n,
 		session: session,
