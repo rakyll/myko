@@ -20,7 +20,7 @@ func DefaultConfig() Config {
 		Listen: ":6959",
 		DataConfig: DataConfig{
 			CassandraConfig: CassandraConfig{
-				Keyspace: "events",
+				Keyspace: "myko",
 				Peers:    []string{"localhost:9042"},
 			},
 		},
