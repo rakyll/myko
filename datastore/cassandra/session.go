@@ -27,10 +27,6 @@ func NewSession(c config.CassandraConfig) (*Session, error) {
 	if c.Datacenter != "" {
 		cluster.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(c.Datacenter)
 	}
-
-	cluster.SslOpts = &gocql.SslOptions{
-		EnableHostVerification: false,
-	}
 	cluster.ProtoVersion = 4
 
 	if len(c.Peers) == 1 {
