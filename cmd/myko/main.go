@@ -13,7 +13,6 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/mykodev/myko/datastore/cassandra"
 	pb "github.com/mykodev/myko/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -23,6 +22,7 @@ var (
 	databasePassword string
 	datacenter       string
 	timeout          time.Duration
+	flushDuration    time.Duration
 )
 
 func main() {
@@ -32,6 +32,7 @@ func main() {
 	flag.StringVar(&databasePassword, "cassandra-passwd", "", "")
 	flag.StringVar(&datacenter, "datacenter", "", "")
 	flag.DurationVar(&timeout, "timeout", 10*time.Second, "")
+	flag.DurationVar(&flushDuration, "flush-every", 5*time.Second, "")
 	flag.Parse()
 
 	session, err := cassandra.NewSession(cassandra.Options{
@@ -150,17 +151,17 @@ func (s *service) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest)
 func newBatchWriter(session *gocql.Session, n int) *batchWriter {
 	return &batchWriter{
 		n:       n,
-		events:  make(map[string]*pb.Event, n),
 		session: session,
+		events:  make(map[string]*pb.Event, n),
 	}
 }
 
 type batchWriter struct {
 	mu         sync.Mutex
-	n          int
 	events     map[string]*pb.Event
 	lastExport time.Time
 
+	n       int
 	session *gocql.Session
 }
 
@@ -187,19 +188,20 @@ func (b *batchWriter) Write(e *pb.Entry) error {
 			b.events[key] = v
 		}
 	}
+	return b.flushIfNeeded()
+}
 
-	if len(b.events) > b.n || b.lastExport.Before(time.Now().Add(-5*time.Second)) {
+func (b *batchWriter) flushIfNeeded() error {
+	// flushIfNeeded need to be called from Write.
+	if len(b.events) > b.n || b.lastExport.Before(time.Now().Add(-1*flushDuration)) {
 		log.Printf("Batch writing %d records", len(b.events))
-		batch := b.session.NewBatch(gocql.UnloggedBatch)
+		batch := b.session.NewBatch(gocql.LoggedBatch)
 		for key, e := range b.events {
 			origin, traceID, name, unit := b.parseKey(key)
 
 			id, err := gocql.RandomUUID()
 			if err != nil {
 				return err
-			}
-			if !e.CreatedAt.IsValid() {
-				e.CreatedAt = timestamppb.Now()
 			}
 			batch.Query(`
 				INSERT INTO events.data 
