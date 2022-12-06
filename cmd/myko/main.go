@@ -156,9 +156,11 @@ func newBatchWriter(session *gocql.Session, n int) *batchWriter {
 }
 
 type batchWriter struct {
-	mu      sync.Mutex
-	n       int
-	events  map[string]*pb.Event // by origin and trace_id
+	mu         sync.Mutex
+	n          int
+	events     map[string]*pb.Event
+	lastExport time.Time
+
 	session *gocql.Session
 }
 
@@ -186,7 +188,7 @@ func (b *batchWriter) Write(e *pb.Entry) error {
 		}
 	}
 
-	if len(b.events) > b.n {
+	if len(b.events) > b.n || b.lastExport.Before(time.Now().Add(-5*time.Second)) {
 		log.Printf("Batch writing %d records", len(b.events))
 		batch := b.session.NewBatch(gocql.UnloggedBatch)
 		for key, e := range b.events {
@@ -209,6 +211,7 @@ func (b *batchWriter) Write(e *pb.Entry) error {
 			return err
 		}
 		b.events = make(map[string]*pb.Event, b.n)
+		b.lastExport = time.Now()
 	}
 	return nil
 }
