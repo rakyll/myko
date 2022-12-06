@@ -32,7 +32,7 @@ func New(cfg config.Config) (*Server, error) {
 		keyspace: cassandraConfig.Keyspace,
 		session:  session,
 	}
-	server.batchWriter = newBatchWriter(server, 100, cfg.FlushConfig.Interval)
+	server.batchWriter = newBatchWriter(server, cfg.FlushConfig.BufferSize, cfg.FlushConfig.Interval)
 	return server, nil
 }
 

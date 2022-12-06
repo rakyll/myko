@@ -25,7 +25,8 @@ func DefaultConfig() Config {
 			},
 		},
 		FlushConfig: FlushConfig{
-			Interval: 5 * time.Second,
+			BufferSize: 1000,
+			Interval:   5 * time.Second,
 		},
 	}
 }
@@ -49,6 +50,12 @@ type CassandraConfig struct {
 }
 
 type FlushConfig struct {
+	// BufferSize is the uppermost size of the data points
+	// kept in-memory before they are flushed out to the datastore.
+	BufferSize int `yaml:"buffer_size"`
+
+	// Interval is the uppermost duration to wait before
+	// all in-memory data points are flushed out to the datastore.
 	Interval time.Duration `yaml:"interval"`
 }
 
