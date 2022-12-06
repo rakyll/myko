@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	statspkg "github.com/montanaflynn/stats"
+	"github.com/montanaflynn/stats"
 	pb "github.com/mykodev/myko/proto"
 )
 
@@ -104,7 +104,7 @@ func (s *summary) emit(err error, lat time.Duration) {
 
 func (s *summary) print() {
 	fmt.Println("")
-	data := statspkg.Float64Data(s.latencies)
+	data := stats.Float64Data(s.latencies)
 
 	for _, t := range []struct {
 		name       string
@@ -123,7 +123,7 @@ func (s *summary) print() {
 			percentile: 99.0,
 		},
 	} {
-		p, err := statspkg.Percentile(data, t.percentile)
+		p, err := stats.Percentile(data, t.percentile)
 		if err != nil {
 			fmt.Printf("Failed to calculate %v: %v\n", t.name, err)
 			continue
