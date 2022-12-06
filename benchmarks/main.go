@@ -13,9 +13,11 @@ import (
 )
 
 var (
-	op     string
-	n      int
-	events int
+	op               string
+	n                int
+	events           int
+	eventCardinality int
+	unitCardinality  int
 
 	random = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
@@ -28,6 +30,8 @@ func main() {
 	flag.StringVar(&op, "op", "insert", "")
 	flag.IntVar(&n, "n", 1000, "")
 	flag.IntVar(&events, "events", 10, "")
+	flag.IntVar(&eventCardinality, "event-cardinality", 20, "")
+	flag.IntVar(&unitCardinality, "unit-cardinality", 10, "")
 	flag.Parse()
 
 	client := pb.NewServiceJSONClient("http://localhost:6959", &http.Client{})
@@ -49,8 +53,8 @@ func benchmarkInserts(ctx context.Context, client pb.Service) {
 			Origin:  benchmarkOrigin,
 			Events: []*pb.Event{
 				{
-					Name:  fmt.Sprintf("event%d", random.Intn(20)),
-					Unit:  fmt.Sprintf("unit_%d", random.Intn(5)),
+					Name:  fmt.Sprintf("event_%d", random.Intn(eventCardinality)),
+					Unit:  fmt.Sprintf("unit_%d", random.Intn(unitCardinality)),
 					Value: random.Float64(),
 				},
 			},
