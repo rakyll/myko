@@ -60,7 +60,7 @@ type service struct {
 	batchWriter *batchWriter
 }
 
-func (s *service) ListEvents(ctx context.Context, req *pb.ListEventsRequest) (*pb.ListEventsResponse, error) {
+func (s *service) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResponse, error) {
 	filter := cassandra.Filter{
 		TraceID: req.TraceId,
 		Origin:  req.Origin,
@@ -113,7 +113,7 @@ func (s *service) ListEvents(ctx context.Context, req *pb.ListEventsRequest) (*p
 
 	sorter := &eventSorter{events: events}
 	sort.Sort(sorter)
-	return &pb.ListEventsResponse{Events: sorter.events}, nil
+	return &pb.QueryResponse{Events: sorter.events}, nil
 }
 
 func (s *service) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) (*pb.InsertEventsResponse, error) {

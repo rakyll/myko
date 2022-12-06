@@ -60,7 +60,7 @@ func main() {
 		log.Fatalf("Failed to insert events: %v", err)
 	}
 
-	resp, err := client.ListEvents(ctx, &pb.ListEventsRequest{
+	resp, err := client.Query(ctx, &pb.QueryRequest{
 		TraceId: traceID,
 		Origin:  "create_user",
 	})

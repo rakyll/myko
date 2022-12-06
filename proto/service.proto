@@ -7,7 +7,7 @@ option go_package = "github.com/mykodev/myko/proto/myko;mykopb";
 import "google/protobuf/timestamp.proto";
 
 service Service {
-  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  rpc Query(QueryRequest) returns (QueryResponse);
   rpc InsertEvents(InsertEventsRequest) returns (InsertEventsResponse);
   rpc DeleteEvents(DeleteEventsRequest) returns (DeleteEventsResponse);
 }
@@ -32,7 +32,7 @@ message Entry {
     repeated Event events = 3;
 }
 
-message ListEventsRequest {
+message QueryRequest {
     string trace_id = 1;
 
     string origin = 2;
@@ -40,7 +40,7 @@ message ListEventsRequest {
     string event = 3;
 }
 
-message ListEventsResponse {
+message QueryResponse {
     repeated Event events = 1;
 }
 
