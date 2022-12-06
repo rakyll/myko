@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	statspkg "github.com/montanaflynn/stats"
 	pb "github.com/mykodev/myko/proto"
 )
 
@@ -63,17 +64,20 @@ func benchmarkInserts(ctx context.Context, client pb.Service) {
 		})
 	}
 
+	s := newSummary(n)
 	for i := 0; i < n; i++ {
 		start := time.Now()
 		_, err := client.InsertEvents(ctx, &pb.InsertEventsRequest{
 			Entries: entries,
 		})
+		s.emit(err, time.Now().Sub(start))
 		if err == nil {
 			log.Printf("Insert responded in %v", time.Now().Sub(start))
 		} else {
 			log.Printf("Insert errored with %v", err)
 		}
 	}
+	s.print()
 }
 
 func cleanup(ctx context.Context, client pb.Service) {
@@ -83,4 +87,52 @@ func cleanup(ctx context.Context, client pb.Service) {
 	if err != nil {
 		log.Fatalf("Failed to cleanup: %v", err)
 	}
+}
+
+type summary struct {
+	errors    int
+	latencies []float64
+}
+
+func (s *summary) emit(err error, lat time.Duration) {
+	if err != nil {
+		s.errors++
+		return
+	}
+	s.latencies = append(s.latencies, float64(lat)/(1000*1000)) // in ms
+}
+
+func (s *summary) print() {
+	fmt.Println("")
+	data := statspkg.Float64Data(s.latencies)
+
+	for _, t := range []struct {
+		name       string
+		percentile float64
+	}{
+		{
+			name:       "50th percentile",
+			percentile: 50.0,
+		},
+		{
+			name:       "90th percentile",
+			percentile: 90.0,
+		},
+		{
+			name:       "90th percentile",
+			percentile: 99.0,
+		},
+	} {
+		p, err := statspkg.Percentile(data, t.percentile)
+		if err != nil {
+			fmt.Printf("Failed to calculate %v: %v\n", t.name, err)
+			continue
+		}
+		fmt.Printf("%v: %vms\n", t.name, p)
+	}
+	fmt.Printf("Errors: %v\n", s.errors)
+}
+
+func newSummary(n int) *summary {
+	return &summary{latencies: make([]float64, 0, n)}
 }
