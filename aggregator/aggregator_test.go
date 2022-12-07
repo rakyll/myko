@@ -1,6 +1,7 @@
 package aggregator
 
 import (
+	"fmt"
 	"testing"
 
 	pb "github.com/mykodev/myko/proto"
@@ -19,6 +20,7 @@ func TestSummer(t *testing.T) {
 			wantEntries: []*pb.Entry{},
 			wantSize:    0,
 		},
+		// TODO: Add a case with no trace IDs.
 		{
 			name: "basic",
 			entries: []*pb.Entry{
@@ -111,6 +113,40 @@ func TestSummer(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkSummer(b *testing.B) {
+	const (
+		originCardinality = 10
+		eventCardinality  = 20
+	)
+
+	entries := make([]*pb.Entry, 0, originCardinality)
+	for i := 0; i < originCardinality; i++ {
+		ev := &pb.Entry{
+			TraceId: "xxx",
+			Origin:  fmt.Sprintf("origin_%d", i),
+		}
+		ev.Events = make([]*pb.Event, 0, eventCardinality)
+		for j := 0; j < eventCardinality; j++ {
+			ev.Events = append(ev.Events, &pb.Event{
+				Name:  fmt.Sprintf("event_%d", j),
+				Unit:  "unit",
+				Value: 1.0,
+			})
+		}
+		entries = append(entries, ev)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		summer := NewSum(1024)
+		for _, entry := range entries {
+			for _, ev := range entry.Events {
+				summer.Add(entry.TraceId, entry.Origin, ev)
+			}
+		}
 	}
 }
 
