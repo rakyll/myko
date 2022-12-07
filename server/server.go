@@ -4,11 +4,11 @@ import (
 	"context"
 	"log"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/gocql/gocql"
+	"github.com/mykodev/myko/aggregator"
 	"github.com/mykodev/myko/config"
 	"github.com/mykodev/myko/datastore/cassandra"
 	"github.com/mykodev/myko/format"
@@ -55,29 +55,20 @@ func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResp
 		value float64
 	)
 
-	v := make(map[string]*pb.Event)
+	summer := aggregator.NewSum(128)
 	for q.Iter().Scan(&name, &value, &unit) {
-		k := key(req.TraceId, req.Origin, name, unit)
-		event, ok := v[k]
-		if ok {
-			event.Value += value
-			v[k] = event
-		} else {
-			v[k] = &pb.Event{
-				Name:  name,
-				Value: value,
-				Unit:  unit,
-			}
-		}
-	}
-	var events []*pb.Event
-	for _, e := range v {
-		events = append(events, &pb.Event{
-			Name:  e.Name,
-			Unit:  e.Unit,
-			Value: e.Value,
+		summer.Add(req.TraceId, req.Origin, &pb.Event{
+			Name:  name,
+			Value: value,
+			Unit:  unit,
 		})
 	}
+
+	events := make([]*pb.Event, summer.Size())
+	summer.ForEach(func(traceID, origin string, event *pb.Event) error {
+		events = append(events, event)
+		return nil
+	})
 
 	sEvents := sortableEvents(events)
 	sort.Sort(sEvents)
@@ -131,13 +122,13 @@ func newBatchWriter(server *Server, n int, flushInterval time.Duration) *batchWr
 		server:        server,
 		n:             n,
 		flushInterval: flushInterval,
-		events:        make(map[string]*pb.Event, n),
+		summer:        aggregator.NewSum(n),
 	}
 }
 
 type batchWriter struct {
-	mu     sync.Mutex // guards events
-	events map[string]*pb.Event
+	mu     sync.Mutex // guards summer
+	summer *aggregator.Summer
 
 	n             int
 	flushInterval time.Duration
@@ -150,46 +141,38 @@ func (b *batchWriter) Write(e *pb.Entry) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	for _, event := range e.Events {
-		key := key(e.Origin, e.TraceId, event.Name, event.Unit)
-		v, ok := b.events[key]
-		if !ok {
-			b.events[key] = event
-		} else {
-			v.Value += event.Value
-			b.events[key] = v
-		}
+	for _, ev := range e.Events {
+		b.summer.Add(e.TraceId, e.Origin, ev)
+
 	}
 	return b.flushIfNeeded()
 }
 
 func (b *batchWriter) flushIfNeeded() error {
 	// flushIfNeeded need to be called from Write.
-	if len(b.events) > b.n || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
-		log.Printf("Batch writing %d records", len(b.events))
+	if size := b.summer.Size(); size > b.n || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
+		log.Printf("Batch writing %d records", size)
 
 		batch := b.server.session.NewBatch(gocql.UnloggedBatch)
-		for key, e := range b.events {
-			origin, traceID, name, unit := parseKey(key)
-
+		if err := b.summer.ForEach(func(traceID, origin string, ev *pb.Event) error {
 			id, err := gocql.RandomUUID()
 			if err != nil {
 				return err
 			}
-			if err := batch.Query(`
+			return batch.Query(`
 				INSERT INTO {{.Keyspace}}.events
 				(id, trace_id, origin, event, value, unit, created_at)
 				VALUES ( ?, ?, ?, ?, ?, ?, ? )
 				USING TTL {{.TTL}}`,
-				id.String(), traceID, origin, name, e.Value, unit, time.Now()); err != nil {
-				return err
-			}
+				id.String(), traceID, origin, ev.Name, ev.Value, ev.Unit, time.Now())
+		}); err != nil {
+			return err
 		}
 		if err := b.server.session.ExecuteBatch(batch); err != nil {
 			// TODO: Retry and drop the samples if retries fail.
 			return err
 		}
-		b.events = make(map[string]*pb.Event, b.n)
+		b.summer.Reset()
 		b.lastExport = time.Now()
 	}
 	return nil
@@ -207,13 +190,4 @@ func (s sortableEvents) Less(i, j int) bool {
 
 func (s sortableEvents) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
-}
-
-func key(origin, traceID, name, unit string) string {
-	return origin + ":" + traceID + ":" + name + ":" + unit
-}
-
-func parseKey(key string) (origin, traceID, name, unit string) {
-	v := strings.Split(key, ":")
-	return v[0], v[1], v[2], v[3]
 }
