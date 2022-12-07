@@ -15,9 +15,9 @@ service Service {
 message Event {
     string name = 1;
 
-    string unit = 3;
+    string unit = 2;
 
-    double value = 4;
+    double value = 3;
 }
 
 message Entry {
