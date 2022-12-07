@@ -27,6 +27,19 @@ $ docker run -it -p 6959:6959 -v $(pwd)/config:/config \
     public.ecr.aws/q1p8v8z2/myko:latest -config /config/config.yaml
 ```
 
+Skip SSL host verification if you are using Cosmos with Cassandra API:
+
+``` bash
+$ cat config/config.yaml
+data:
+    cassandra:
+        peers:
+            - name.cassandra.cosmos.azure.com:10350
+        username: username
+        password: *********
+        ssl_skip_verify: true
+```
+
 ## Concepts
 
 myko has three fundamental concepts:
