@@ -22,6 +22,28 @@ func TestSummer(t *testing.T) {
 		},
 		// TODO: Add a case with no trace IDs.
 		{
+			name: "no trace",
+			entries: []*pb.Entry{
+				{
+					Origin: "origin_1",
+					Events: []*pb.Event{
+						{Name: "name_1", Unit: "unit_1", Value: 10},
+						{Name: "name_1", Unit: "unit_1", Value: 10},
+						{Name: "name_1", Unit: "unit_1", Value: 10},
+					},
+				},
+			},
+			wantEntries: []*pb.Entry{
+				{
+					Origin: "origin_1",
+					Events: []*pb.Event{
+						{Name: "name_1", Unit: "unit_1", Value: 30},
+					},
+				},
+			},
+			wantSize: 1,
+		},
+		{
 			name: "basic",
 			entries: []*pb.Entry{
 				{
