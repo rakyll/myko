@@ -116,6 +116,7 @@ func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) 
 
 	var id gocql.UUID
 	for q.Iter().Scan(&id) {
+		// TODO: Replace deletion with TTL on events table.
 		log.Printf("Deleting %q", id)
 
 		q, err := s.session.Query(`DELETE FROM {{.Keyspace}}.events WHERE id = ?`, id)

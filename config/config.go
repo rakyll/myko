@@ -19,6 +19,7 @@ func DefaultConfig() Config {
 	return Config{
 		Listen: ":6959",
 		DataConfig: DataConfig{
+			TTL: 24 * time.Hour,
 			CassandraConfig: CassandraConfig{
 				Keyspace: "myko",
 				Peers:    []string{"localhost:9042"},
@@ -33,6 +34,8 @@ func DefaultConfig() Config {
 }
 
 type DataConfig struct {
+	TTL time.Duration `yaml:"ttl"`
+
 	CassandraConfig CassandraConfig `yaml:"cassandra"`
 }
 
