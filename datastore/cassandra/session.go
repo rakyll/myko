@@ -116,7 +116,8 @@ var initCQLs = []string{
 		unit text, 
 		value double,
 		created_at timestamp
-	);`,
+	) WITH CLUSTERING ORDER BY (created_at)
+      AND gc_grace_seconds = 864000;`,
 	`CREATE INDEX IF NOT EXISTS traceIndex ON {{.Keyspace}}.events ( trace_id );`,
 	`CREATE INDEX IF NOT EXISTS originIndex ON {{.Keyspace}}.events ( origin );`,
 	`CREATE INDEX IF NOT EXISTS eventIndex ON {{.Keyspace}}.events ( event );`,
