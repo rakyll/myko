@@ -23,12 +23,20 @@ message Event {
 }
 
 message Entry {
+    // Trace ID is the unique identifier of a trace
+    // if a trace was in context when recording the events.
+    // Trace ID dramatically increases the cardinality of the
+    // collected data, it should be used when debugging a request.
     string trace_id = 1;
 
+    // Origin is the identifier where the event has happened.
+    // It could be an RPC method, background job, or a unique
+    // ID a customer.
     string origin = 2;
 
     reserved 3; // reserved for attributes
 
+    // Events happened in the current context.
     repeated Event events = 4;
 }
 
