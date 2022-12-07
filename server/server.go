@@ -183,7 +183,8 @@ func (b *batchWriter) flushIfNeeded() error {
 			if err := batch.Query(`
 				INSERT INTO {{.Keyspace}}.events
 				(id, trace_id, origin, event, value, unit, created_at)
-				VALUES ( ?, ?, ?, ?, ?, ?, ? )`,
+				VALUES ( ?, ?, ?, ?, ?, ?, ? )
+				USING TTL {{.TTL}}`,
 				id.String(), traceID, origin, name, e.Value, unit, time.Now()); err != nil {
 				return err
 			}

@@ -11,6 +11,7 @@ import (
 )
 
 type Session struct {
+	ttl      int64
 	keyspace string
 	session  *gocql.Session
 }
@@ -41,6 +42,7 @@ func NewSession(c config.CassandraConfig) (*Session, error) {
 	}
 
 	s := &Session{
+		ttl:      int64(c.TTL) / (1000 * 1000), // in seconds
 		keyspace: c.Keyspace,
 		session:  session,
 	}
@@ -62,7 +64,10 @@ func (s *Session) Query(q string, vals ...interface{}) (*gocql.Query, error) {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, &keyspaceData{Keyspace: s.keyspace}); err != nil {
+	if err := tmpl.Execute(&buf, &queryData{
+		Keyspace: s.keyspace,
+		TTL:      s.ttl,
+	}); err != nil {
 		return nil, err
 	}
 	return s.session.Query(buf.String(), vals...), nil
@@ -86,7 +91,7 @@ func (b *Batch) Query(q string, vals ...interface{}) error {
 		return err
 	}
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, &keyspaceData{Keyspace: b.keyspace}); err != nil {
+	if err := tmpl.Execute(&buf, &queryData{Keyspace: b.keyspace}); err != nil {
 		return err
 	}
 	b.batch.Query(buf.String(), vals...)
@@ -97,8 +102,9 @@ func (s *Session) ExecuteBatch(b *Batch) error {
 	return s.session.ExecuteBatch(b.batch)
 }
 
-type keyspaceData struct {
+type queryData struct {
 	Keyspace string
+	TTL      int64
 }
 
 var initCQLs = []string{
@@ -116,8 +122,7 @@ var initCQLs = []string{
 		unit text, 
 		value double,
 		created_at timestamp
-	) WITH CLUSTERING ORDER BY (created_at)
-      AND gc_grace_seconds = 864000;`,
+	);`,
 	`CREATE INDEX IF NOT EXISTS traceIndex ON {{.Keyspace}}.events ( trace_id );`,
 	`CREATE INDEX IF NOT EXISTS originIndex ON {{.Keyspace}}.events ( origin );`,
 	`CREATE INDEX IF NOT EXISTS eventIndex ON {{.Keyspace}}.events ( event );`,
