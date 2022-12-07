@@ -75,14 +75,14 @@ func (s *Session) Query(q string, vals ...interface{}) (*gocql.Query, error) {
 
 func (s *Session) NewBatch(bt gocql.BatchType) *Batch {
 	return &Batch{
-		keyspace: s.keyspace,
-		batch:    gocql.NewBatch(bt),
+		session: s,
+		batch:   gocql.NewBatch(bt),
 	}
 }
 
 type Batch struct {
-	keyspace string
-	batch    *gocql.Batch
+	session *Session
+	batch   *gocql.Batch
 }
 
 func (b *Batch) Query(q string, vals ...interface{}) error {
@@ -91,7 +91,10 @@ func (b *Batch) Query(q string, vals ...interface{}) error {
 		return err
 	}
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, &queryData{Keyspace: b.keyspace}); err != nil {
+	if err := tmpl.Execute(&buf, &queryData{
+		Keyspace: b.session.keyspace,
+		TTL:      b.session.ttl,
+	}); err != nil {
 		return err
 	}
 	b.batch.Query(buf.String(), vals...)
