@@ -17,21 +17,16 @@ import (
 )
 
 type Server struct {
-	keyspace    string
 	session     *cassandra.Session
 	batchWriter *batchWriter
 }
 
 func New(cfg config.Config) (*Server, error) {
-	cassandraConfig := cfg.DataConfig.CassandraConfig
-	session, err := cassandra.NewSession(cassandraConfig)
+	session, err := cassandra.NewSession(cfg.DataConfig)
 	if err != nil {
 		return nil, err
 	}
-	server := &Server{
-		keyspace: cassandraConfig.Keyspace,
-		session:  session,
-	}
+	server := &Server{session: session}
 	server.batchWriter = newBatchWriter(server, cfg.FlushConfig.BufferSize, cfg.FlushConfig.Interval)
 	return server, nil
 }
@@ -84,9 +79,9 @@ func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResp
 		})
 	}
 
-	sorter := &eventSorter{events: events}
-	sort.Sort(sorter)
-	return &pb.QueryResponse{Events: sorter.events}, nil
+	sEvents := sortableEvents(events)
+	sort.Sort(sEvents)
+	return &pb.QueryResponse{Events: sEvents}, nil
 }
 
 func (s *Server) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) (*pb.InsertEventsResponse, error) {
@@ -141,13 +136,14 @@ func newBatchWriter(server *Server, n int, flushInterval time.Duration) *batchWr
 }
 
 type batchWriter struct {
-	mu         sync.Mutex
-	events     map[string]*pb.Event
-	lastExport time.Time
+	mu     sync.Mutex // guards events
+	events map[string]*pb.Event
 
 	n             int
 	flushInterval time.Duration
-	server        *Server
+	lastExport    time.Time
+
+	server *Server
 }
 
 func (b *batchWriter) Write(e *pb.Entry) error {
@@ -199,20 +195,18 @@ func (b *batchWriter) flushIfNeeded() error {
 	return nil
 }
 
-type eventSorter struct {
-	events []*pb.Event
+type sortableEvents []*pb.Event
+
+func (s sortableEvents) Len() int {
+	return len(s)
 }
 
-func (s *eventSorter) Len() int {
-	return len(s.events)
+func (s sortableEvents) Less(i, j int) bool {
+	return s[i].Name < s[j].Name
 }
 
-func (s *eventSorter) Less(i, j int) bool {
-	return s.events[i].Name < s.events[j].Name
-}
-
-func (s *eventSorter) Swap(i, j int) {
-	s.events[i], s.events[j] = s.events[j], s.events[i]
+func (s sortableEvents) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 func key(origin, traceID, name, unit string) string {

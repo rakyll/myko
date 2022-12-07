@@ -16,23 +16,23 @@ func main() {
 	flag.StringVar(&configFile, "config", "", "")
 	flag.Parse()
 
-	var serverConfig config.Config
+	var cfg config.Config
 	if configFile == "" {
-		serverConfig = config.DefaultConfig()
+		cfg = config.DefaultConfig()
 	} else {
-		cfg, err := config.Open(configFile)
+		var err error
+		cfg, err = config.Open(configFile)
 		if err != nil {
 			log.Fatalf("Failed to open and parse config file: %v", err)
 		}
-		serverConfig = cfg
 	}
 
-	service, err := server.New(serverConfig)
+	service, err := server.New(cfg)
 	if err != nil {
 		log.Fatalf("Failed to create a server: %v", err)
 	}
 
-	log.Printf("Starting the myko server at %q...", serverConfig.Listen)
+	log.Printf("Starting the myko server at %q...", cfg.Listen)
 	server := pb.NewServiceServer(service, nil)
-	log.Fatal(http.ListenAndServe(serverConfig.Listen, server))
+	log.Fatal(http.ListenAndServe(cfg.Listen, server))
 }

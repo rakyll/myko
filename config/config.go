@@ -19,11 +19,11 @@ func DefaultConfig() Config {
 	return Config{
 		Listen: ":6959",
 		DataConfig: DataConfig{
+			TTL: 24 * time.Hour,
 			CassandraConfig: CassandraConfig{
 				Keyspace: "myko",
 				Peers:    []string{"localhost:9042"},
 				Timeout:  30 * time.Second,
-				TTL:      24 * time.Hour,
 			},
 		},
 		FlushConfig: FlushConfig{
@@ -34,6 +34,8 @@ func DefaultConfig() Config {
 }
 
 type DataConfig struct {
+	TTL time.Duration `yaml:"ttl"`
+
 	CassandraConfig CassandraConfig `yaml:"cassandra"`
 }
 
@@ -49,8 +51,6 @@ type CassandraConfig struct {
 	Datacenter string `yaml:"dc,omitempty"`
 
 	Timeout time.Duration `yaml:"timeout,omitempty"`
-
-	TTL time.Duration `yaml:"ttl"`
 }
 
 type FlushConfig struct {

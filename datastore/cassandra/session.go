@@ -16,33 +16,35 @@ type Session struct {
 	session  *gocql.Session
 }
 
-func NewSession(c config.CassandraConfig) (*Session, error) {
+func NewSession(dataConfig config.DataConfig) (*Session, error) {
+	c := dataConfig.CassandraConfig
+
 	if len(c.Peers) == 0 {
 		return nil, errors.New("no peers given")
 	}
-	cluster := gocql.NewCluster(c.Peers...)
-	cluster.Timeout = c.Timeout
+	clusterConf := gocql.NewCluster(c.Peers...)
+	clusterConf.Timeout = c.Timeout
 	if c.Username != "" {
-		cluster.Authenticator = gocql.PasswordAuthenticator{Username: c.Username, Password: c.Password}
+		clusterConf.Authenticator = gocql.PasswordAuthenticator{Username: c.Username, Password: c.Password}
 	}
 	if c.Datacenter != "" {
-		cluster.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(c.Datacenter)
+		clusterConf.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(c.Datacenter)
 	}
-	cluster.ProtoVersion = 4
+	clusterConf.ProtoVersion = 4
 
 	if len(c.Peers) == 1 {
-		cluster.Consistency = gocql.LocalOne
+		clusterConf.Consistency = gocql.LocalOne
 	} else {
-		cluster.Consistency = gocql.Quorum
+		clusterConf.Consistency = gocql.Quorum
 	}
 
-	session, err := cluster.CreateSession()
+	session, err := clusterConf.CreateSession()
 	if err != nil {
 		return nil, err
 	}
 
 	s := &Session{
-		ttl:      int64(c.TTL) / (1000 * 1000), // in seconds
+		ttl:      int64(dataConfig.TTL) / (1000 * 1000), // in seconds
 		keyspace: c.Keyspace,
 		session:  session,
 	}

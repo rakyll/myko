@@ -13,9 +13,9 @@ func escapeString(v string) string {
 func Espace(e *pb.Entry) *pb.Entry {
 	e.Origin = escapeString(e.Origin)
 	e.TraceId = escapeString(e.TraceId)
-	for _, event := range e.Events {
-		event.Name = escapeString(event.Name)
-		event.Unit = escapeString(event.Unit)
+	for _, ev := range e.Events {
+		ev.Name = escapeString(ev.Name)
+		ev.Unit = escapeString(ev.Unit)
 	}
 	return e
 }
