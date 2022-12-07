@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -58,16 +57,5 @@ func main() {
 	})
 	if err != nil {
 		log.Fatalf("Failed to insert events: %v", err)
-	}
-
-	resp, err := client.Query(ctx, &pb.QueryRequest{
-		TraceId: traceID,
-		Origin:  "create_user",
-	})
-	if err != nil {
-		log.Fatalf("Failed to list events: %v", err)
-	}
-	for _, item := range resp.Events {
-		fmt.Printf("%v: %v%v\n", item.Name, item.Value, item.Unit)
 	}
 }
