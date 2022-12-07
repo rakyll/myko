@@ -9,6 +9,8 @@ import "google/protobuf/timestamp.proto";
 service Service {
   rpc Query(QueryRequest) returns (QueryResponse);
   rpc InsertEvents(InsertEventsRequest) returns (InsertEventsResponse);
+
+  // TODO: DeleteEvents RPC and rely on TTL.
   rpc DeleteEvents(DeleteEventsRequest) returns (DeleteEventsResponse);
 }
 
@@ -55,8 +57,6 @@ message DeleteEventsRequest {
     string origin = 2;
 
     string event = 3;
-
-    // TODO: Allow deleting by retention window
 }
 
 message DeleteEventsResponse {
