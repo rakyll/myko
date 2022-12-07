@@ -77,7 +77,12 @@ func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResp
 
 func (s *Server) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) (*pb.InsertEventsResponse, error) {
 	for _, entry := range req.Entries {
-		if err := s.batchWriter.Write(format.Espace(entry)); err != nil {
+		if err := format.Verify(entry); err != nil {
+			return nil, err
+		}
+	}
+	for _, entry := range req.Entries {
+		if err := s.batchWriter.Write(entry); err != nil {
 			return nil, err
 		}
 	}
