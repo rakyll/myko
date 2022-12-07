@@ -51,6 +51,8 @@ type CassandraConfig struct {
 	Datacenter string `yaml:"dc,omitempty"`
 
 	Timeout time.Duration `yaml:"timeout,omitempty"`
+
+	SSLSkipVerify bool `yaml:"ssl_skip_verify,omitempty"`
 }
 
 type FlushConfig struct {

@@ -30,6 +30,11 @@ func NewSession(dataConfig config.DataConfig) (*Session, error) {
 	if c.Datacenter != "" {
 		clusterConf.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(c.Datacenter)
 	}
+	if c.SSLSkipVerify {
+		clusterConf.SslOpts = &gocql.SslOptions{
+			EnableHostVerification: false,
+		}
+	}
 	clusterConf.ProtoVersion = 4
 
 	if len(c.Peers) == 1 {
