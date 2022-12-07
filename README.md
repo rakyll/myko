@@ -36,7 +36,7 @@ defined by the user, such as a query to MySQL, a checkout transaction,
 an expensive encoding job.
 * **Origin**: Origin of the event. It can be a request handler, a background job,
 or an identifier like a customer ID.
-* **Trace ID**: Used optionally when an event happens in the lifetime of a request.
+* **Trace ID**: Used optionally to debug events happening in the lifetime of a debug request.
 
 For example, while loading navigation bar, the following events can be collected:
 
