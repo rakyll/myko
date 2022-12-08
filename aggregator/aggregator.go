@@ -11,7 +11,7 @@ type Summer struct {
 	events map[string]*pb.Event
 }
 
-func NewSum(cap int) *Summer {
+func NewSummer(cap int) *Summer {
 	return &Summer{cap: cap, events: make(map[string]*pb.Event, cap)}
 }
 

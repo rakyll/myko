@@ -55,7 +55,7 @@ func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResp
 		value float64
 	)
 
-	summer := aggregator.NewSum(128)
+	summer := aggregator.NewSummer(128)
 	for q.Iter().Scan(&name, &value, &unit) {
 		summer.Add(req.TraceId, req.Origin, &pb.Event{
 			Name:  name,
@@ -127,7 +127,7 @@ func newBatchWriter(server *Server, n int, flushInterval time.Duration) *batchWr
 		server:        server,
 		n:             n,
 		flushInterval: flushInterval,
-		summer:        aggregator.NewSum(n),
+		summer:        aggregator.NewSummer(n),
 	}
 }
 

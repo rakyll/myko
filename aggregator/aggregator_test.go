@@ -118,7 +118,7 @@ func TestSummer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewSum(128)
+			s := NewSummer(128)
 			for _, e := range tt.entries {
 				for _, ev := range e.Events {
 					s.Add(e.TraceId, e.Origin, ev)
@@ -163,7 +163,7 @@ func BenchmarkSummer(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		summer := NewSum(1024)
+		summer := NewSummer(1024)
 		for _, entry := range entries {
 			for _, ev := range entry.Events {
 				summer.Add(entry.TraceId, entry.Origin, ev)
