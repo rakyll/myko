@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log"
 	"sort"
 	"sync"
@@ -32,19 +33,22 @@ func New(cfg config.Config) (*Server, error) {
 }
 
 func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResponse, error) {
-	filter := cassandra.Filter{
-		TraceID: req.TraceId,
-		Origin:  req.Origin,
-		Event:   req.Event,
-	}
-	filterCQL, err := filter.CQL()
-	if err != nil {
-		return nil, err
+	if req.TraceId == "" && req.Origin == "" {
+		return nil, errors.New("needs trace_id or origin")
 	}
 
-	q, err := s.session.Query(`
-		SELECT event, value, unit 
-		FROM {{.Keyspace}}.events ` + filterCQL + ` ALLOW FILTERING`)
+	var (
+		q   *gocql.Query
+		err error
+	)
+
+	if req.TraceId != "" {
+		q, err = s.session.Query(`SELECT event, value, unit FROM {{.Keyspace}}.events WHERE trace_id = ?`, req.TraceId)
+	} else if req.Event == "" {
+		q, err = s.session.Query(`SELECT event, value, unit FROM {{.Keyspace}}.events WHERE origin = ?`, req.Origin)
+	} else {
+		q, err = s.session.Query(`SELECT event, value, unit FROM {{.Keyspace}}.events WHERE origin = ? AND event = ?`, req.Origin, req.Event)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -90,17 +94,22 @@ func (s *Server) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) 
 }
 
 func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) (*pb.DeleteEventsResponse, error) {
-	filter := cassandra.Filter{
-		TraceID: req.TraceId,
-		Origin:  req.Origin,
-		Event:   req.Event,
+	if req.TraceId != "" {
+		return nil, errors.New("not supported yet")
 	}
-	filterCQL, err := filter.CQL()
-	if err != nil {
-		return nil, err
+	if req.Origin == "" {
+		return nil, errors.New("needs origin")
 	}
 
-	q, err := s.session.Query(`SELECT id FROM {{.Keyspace}}.events ` + filterCQL + ` ALLOW FILTERING`)
+	var (
+		q   *gocql.Query
+		err error
+	)
+	if req.Event == "" {
+		q, err = s.session.Query(`SELECT id FROM {{.Keyspace}}.events WHERE origin = ?`, req.Origin)
+	} else {
+		q, err = s.session.Query(`SELECT id FROM {{.Keyspace}}.events WHERE origin = ? AND event = ?`, req.Origin, req.Event)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +119,9 @@ func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) 
 		// TODO: Replace deletion with TTL on events table.
 		log.Printf("Deleting %q", id)
 
-		q, err := s.session.Query(`DELETE FROM {{.Keyspace}}.events WHERE id = ?`, id)
+		q, err := s.session.Query(`
+			DELETE FROM {{.Keyspace}}.events 
+			WHERE origin = ? AND id = ?`, req.Origin, id)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +178,7 @@ func (b *batchWriter) flushIfNeeded() error {
 			return batch.Query(`
 				INSERT INTO {{.Keyspace}}.events
 				(id, trace_id, origin, event, value, unit, created_at)
-				VALUES ( ?, ?, ?, ?, ?, ?, ? )
+				VALUES (?, ?, ?, ?, ?, ?, ? )
 				USING TTL {{.TTL}}`,
 				id.String(), traceID, origin, ev.Name, ev.Value, ev.Unit, time.Now())
 		}); err != nil {

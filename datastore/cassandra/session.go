@@ -123,33 +123,18 @@ var initCQLs = []string{
 		WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3}
 		AND durable_writes = true;`,
 	`CREATE TABLE IF NOT EXISTS {{.Keyspace}}.events (
-		id uuid primary key, 
-		trace_id text,
+		id uuid,
 		origin text,
+		trace_id text,
 		attr_key text,
 		attr_value text,
 		event text,
 		unit text, 
 		value double,
-		created_at timestamp
-	);`,
-	`CREATE TABLE IF NOT EXISTS {{.Keyspace}}.compacted_events (
-		id uuid primary key, 
-		trace_id text,
-		origin text,
-		attr_key text,
-		attr_value text,
-		event text,
-		unit text, 
-		value double,
-		created_at timestamp
+		created_at timestamp,
+		primary key ((origin, id))
 	);`,
 	`CREATE INDEX IF NOT EXISTS traceIndex ON {{.Keyspace}}.events ( trace_id );`,
-	`CREATE INDEX IF NOT EXISTS originIndex ON {{.Keyspace}}.events ( origin );`,
 	`CREATE INDEX IF NOT EXISTS eventIndex ON {{.Keyspace}}.events ( event );`,
 	`CREATE INDEX IF NOT EXISTS createdAtIndex ON {{.Keyspace}}.events ( created_at );`,
-	`CREATE INDEX IF NOT EXISTS traceIndex ON {{.Keyspace}}.compacted_events ( trace_id );`, // TODO: maybe disable trace ID?
-	`CREATE INDEX IF NOT EXISTS originIndex ON {{.Keyspace}}.compacted_events ( origin );`,
-	`CREATE INDEX IF NOT EXISTS eventIndex ON {{.Keyspace}}.compacted_events ( event );`,
-	`CREATE INDEX IF NOT EXISTS createdAtIndex ON {{.Keyspace}}.compacted_events ( created_at );`,
 }

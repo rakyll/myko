@@ -37,6 +37,7 @@ type Service interface {
 
 	InsertEvents(context.Context, *InsertEventsRequest) (*InsertEventsResponse, error)
 
+	// TODO: DeleteEvents RPC and rely on TTL.
 	DeleteEvents(context.Context, *DeleteEventsRequest) (*DeleteEventsResponse, error)
 }
 

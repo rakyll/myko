@@ -89,9 +89,17 @@ type Entry struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	TraceId string   `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
-	Origin  string   `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
-	Events  []*Event `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`
+	// Trace ID is the unique identifier of a trace
+	// if a trace was in context when recording the events.
+	// Trace ID dramatically increases the cardinality of the
+	// collected data, it should be used when debugging a request.
+	TraceId string `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	// Origin is the identifier where the event has happened.
+	// It could be an RPC method, background job, or a unique
+	// ID a customer.
+	Origin string `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	// Events happened in the current context.
+	Events []*Event `protobuf:"bytes,4,rep,name=events,proto3" json:"events,omitempty"`
 }
 
 func (x *Entry) Reset() {
