@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net/http"
 	"time"
 
@@ -20,8 +19,6 @@ var (
 	traceIDCardinality int
 	eventCardinality   int
 	unitCardinality    int
-
-	random = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 const benchmarkOrigin = "__reserved_myko_benchmark_origin"
@@ -49,16 +46,20 @@ func main() {
 }
 
 func benchmarkInserts(ctx context.Context, client pb.Service) {
+	traceIDs := IDSource{Max: traceIDCardinality}
+	eventIDs := IDSource{Max: eventCardinality}
+	unitIDs := IDSource{Max: unitCardinality}
+
 	var entries []*pb.Entry
 	for i := 0; i < events; i++ {
 		entries = append(entries, &pb.Entry{
-			TraceId: fmt.Sprintf("trace_%d", random.Intn(traceIDCardinality)),
+			TraceId: fmt.Sprintf("trace_%d", traceIDs.Next()),
 			Origin:  benchmarkOrigin,
 			Events: []*pb.Event{
 				{
-					Name:  fmt.Sprintf("event_%d", random.Intn(eventCardinality)),
-					Unit:  fmt.Sprintf("unit_%d", random.Intn(unitCardinality)),
-					Value: random.Float64(),
+					Name:  fmt.Sprintf("event_%d", eventIDs.Next()),
+					Unit:  fmt.Sprintf("unit_%d", unitIDs.Next()),
+					Value: 10.5,
 				},
 			},
 		})
@@ -135,4 +136,17 @@ func (s *summary) print() {
 
 func newSummary(n int) *summary {
 	return &summary{latencies: make([]float64, 0, n)}
+}
+
+type IDSource struct {
+	Current int
+	Max     int
+}
+
+func (s *IDSource) Next() int {
+	if s.Current == s.Max {
+		s.Current = 0
+	}
+	s.Current++
+	return s.Current
 }
