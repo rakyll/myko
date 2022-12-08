@@ -54,7 +54,7 @@ myko ingests the events and can report:
 * The highest contributor origin of database load.
 * Events started at origins to help you analyze dependencies between services or components.
 
-See the [examples](examples/) directory for example programs.
+See the [examples](https://github.com/rakyll/myko/tree/main/examples/) directory for example programs.
 
 
 ## FAQ
