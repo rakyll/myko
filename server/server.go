@@ -94,22 +94,11 @@ func (s *Server) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) 
 }
 
 func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) (*pb.DeleteEventsResponse, error) {
-	if req.TraceId != "" {
-		return nil, errors.New("not supported yet")
-	}
 	if req.Origin == "" {
 		return nil, errors.New("needs origin")
 	}
 
-	var (
-		q   *gocql.Query
-		err error
-	)
-	if req.Event == "" {
-		q, err = s.session.Query(`SELECT id FROM {{.Keyspace}}.events WHERE origin = ?`, req.Origin)
-	} else {
-		q, err = s.session.Query(`SELECT id FROM {{.Keyspace}}.events WHERE origin = ? AND event = ?`, req.Origin, req.Event)
-	}
+	q, err := s.session.Query(`SELECT id FROM {{.Keyspace}}.events WHERE origin = ?`, req.Origin)
 	if err != nil {
 		return nil, err
 	}
