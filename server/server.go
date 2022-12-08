@@ -121,13 +121,13 @@ func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) 
 	return &pb.DeleteEventsResponse{}, nil
 }
 
-func newBatchWriter(server *Server, n int, flushInterval time.Duration) *batchWriter {
+func newBatchWriter(server *Server, bufferSize int, flushInterval time.Duration) *batchWriter {
 	// TODO: Implement an optional WAL.
 	return &batchWriter{
 		server:        server,
-		n:             n,
+		bufferSize:    bufferSize,
 		flushInterval: flushInterval,
-		summer:        aggregator.NewSummer(n),
+		summer:        aggregator.NewSummer(bufferSize),
 	}
 }
 
@@ -135,7 +135,7 @@ type batchWriter struct {
 	mu     sync.Mutex // guards summer
 	summer *aggregator.Summer
 
-	n             int
+	bufferSize    int
 	flushInterval time.Duration
 	lastExport    time.Time
 
@@ -155,7 +155,7 @@ func (b *batchWriter) Write(e *pb.Entry) error {
 
 func (b *batchWriter) flushIfNeeded() error {
 	// flushIfNeeded need to be called from Write.
-	if size := b.summer.Size(); size > b.n || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
+	if size := b.summer.Size(); size >= b.bufferSize || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
 		log.Printf("Batch writing %d records", size)
 
 		batch := b.server.session.NewBatch(gocql.UnloggedBatch)
