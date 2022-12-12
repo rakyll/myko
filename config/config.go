@@ -27,8 +27,8 @@ func DefaultConfig() Config {
 			},
 		},
 		FlushConfig: FlushConfig{
-			BufferSize: 1000,
-			Interval:   5 * time.Second,
+			BufferSize: 8 * 1024,
+			Interval:   60 * time.Second,
 		},
 	}
 }
