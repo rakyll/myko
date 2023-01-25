@@ -3,6 +3,7 @@ package kusto
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/Azure/azure-kusto-go/kusto"
@@ -44,17 +45,17 @@ type kustoEntry struct {
 }
 
 func (s *Session) Ingest(ctx context.Context, traceID, origin string, ev *pb.Event) error {
-	// body, err := json.Marshal(kustoEntry{
-	// 	TraceID:   traceID,
-	// 	Origin:    origin,
-	// 	Event:     ev.Name,
-	// 	Value:     ev.Value,
-	// 	CreatedAt: time.Now(),
-	// })
-	// if err != nil {
-	// 	return err
-	// }
-	result, err := s.client.FromReader(ctx, bytes.NewBuffer([]byte(`{origin: "test"}`)),
+	body, err := json.Marshal(kustoEntry{
+		TraceID:   traceID,
+		Origin:    origin,
+		Event:     ev.Name,
+		Value:     ev.Value,
+		CreatedAt: time.Now(),
+	})
+	if err != nil {
+		return err
+	}
+	result, err := s.client.FromReader(ctx, bytes.NewBuffer(body),
 		ingest.Table(s.tableName),
 		ingest.FileFormat(ingest.JSON),
 	)
