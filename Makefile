@@ -5,6 +5,9 @@ build:
 dev:
 	go run ./cmd/myko -config /tmp/myko.yaml
 
+benchmark-ingest:
+	go run ./benchmarks/*.go -n 2000 -events 200
+
 bash:
 	docker run -it --entrypoint /bin/bash myko
 
