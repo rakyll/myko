@@ -1,12 +1,10 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"log"
 	"net/http"
 
-	"github.com/mykodev/myko/compactor"
 	"github.com/mykodev/myko/config"
 	pb "github.com/mykodev/myko/proto"
 	"github.com/mykodev/myko/server"
@@ -15,8 +13,6 @@ import (
 var configFile string
 
 func main() {
-	ctx := context.Background()
-
 	flag.StringVar(&configFile, "config", "", "")
 	flag.Parse()
 
