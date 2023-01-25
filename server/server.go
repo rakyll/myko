@@ -4,26 +4,24 @@ import (
 	"context"
 	"errors"
 	"log"
-	"sort"
 	"sync"
 	"time"
 
-	"github.com/gocql/gocql"
 	"github.com/mykodev/myko/aggregator"
 	"github.com/mykodev/myko/config"
-	"github.com/mykodev/myko/datastore/cassandra"
+	"github.com/mykodev/myko/datastore/kusto"
 	"github.com/mykodev/myko/format"
 
 	pb "github.com/mykodev/myko/proto"
 )
 
 type Server struct {
-	session     *cassandra.Session
+	session     *kusto.Session
 	batchWriter *batchWriter
 }
 
 func New(cfg config.Config) (*Server, error) {
-	session, err := cassandra.NewSession(cfg.DataConfig)
+	session, err := kusto.NewSession(cfg.DataConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -33,50 +31,7 @@ func New(cfg config.Config) (*Server, error) {
 }
 
 func (s *Server) Query(ctx context.Context, req *pb.QueryRequest) (*pb.QueryResponse, error) {
-	if req.TraceId == "" && req.Origin == "" {
-		return nil, errors.New("needs trace_id or origin")
-	}
-
-	var (
-		q   *gocql.Query
-		err error
-	)
-
-	if req.TraceId != "" {
-		q, err = s.session.Query(`SELECT event, value, unit FROM {{.Keyspace}}.events WHERE trace_id = ?`, req.TraceId)
-	} else if req.Event == "" {
-		q, err = s.session.Query(`SELECT event, value, unit FROM {{.Keyspace}}.events WHERE origin = ?`, req.Origin)
-	} else {
-		q, err = s.session.Query(`SELECT event, value, unit FROM {{.Keyspace}}.events WHERE origin = ? AND event = ?`, req.Origin, req.Event)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	var (
-		name  string
-		unit  string
-		value float64
-	)
-
-	summer := aggregator.NewSummer(128)
-	for q.Iter().Scan(&name, &value, &unit) {
-		summer.Add(req.TraceId, req.Origin, &pb.Event{
-			Name:  name,
-			Value: value,
-			Unit:  unit,
-		})
-	}
-
-	events := make([]*pb.Event, summer.Size())
-	summer.ForEach(func(traceID, origin string, event *pb.Event) error {
-		events = append(events, event)
-		return nil
-	})
-
-	sEvents := sortableEvents(events)
-	sort.Sort(sEvents)
-	return &pb.QueryResponse{Events: sEvents}, nil
+	return &pb.QueryResponse{}, errors.New("not yet supported")
 }
 
 func (s *Server) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) (*pb.InsertEventsResponse, error) {
@@ -93,36 +48,7 @@ func (s *Server) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) 
 	return &pb.InsertEventsResponse{}, nil
 }
 
-func (s *Server) DeleteEvents(ctx context.Context, req *pb.DeleteEventsRequest) (*pb.DeleteEventsResponse, error) {
-	if req.Origin == "" {
-		return nil, errors.New("needs origin")
-	}
-
-	q, err := s.session.Query(`SELECT id FROM {{.Keyspace}}.events WHERE origin = ?`, req.Origin)
-	if err != nil {
-		return nil, err
-	}
-
-	var id gocql.UUID
-	for q.Iter().Scan(&id) {
-		// TODO: Replace deletion with TTL on events table.
-		log.Printf("Deleting %q", id)
-
-		q, err := s.session.Query(`
-			DELETE FROM {{.Keyspace}}.events 
-			WHERE origin = ? AND id = ?`, req.Origin, id)
-		if err != nil {
-			return nil, err
-		}
-		if err := q.Exec(); err != nil {
-			return nil, err
-		}
-	}
-	return &pb.DeleteEventsResponse{}, nil
-}
-
 func newBatchWriter(server *Server, bufferSize int, flushInterval time.Duration) *batchWriter {
-	// TODO: Implement an optional WAL.
 	return &batchWriter{
 		server:        server,
 		bufferSize:    bufferSize,
@@ -154,27 +80,15 @@ func (b *batchWriter) Write(e *pb.Entry) error {
 }
 
 func (b *batchWriter) flushIfNeeded() error {
+	ctx := context.Background()
+
 	// flushIfNeeded need to be called from Write.
 	if size := b.summer.Size(); size >= b.bufferSize || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
-		log.Printf("Batch writing %d records", size)
+		log.Printf("Writing %d events", size)
 
-		batch := b.server.session.NewBatch(gocql.UnloggedBatch)
 		if err := b.summer.ForEach(func(traceID, origin string, ev *pb.Event) error {
-			id, err := gocql.RandomUUID()
-			if err != nil {
-				return err
-			}
-			return batch.Query(`
-				INSERT INTO {{.Keyspace}}.events
-				(id, trace_id, origin, event, value, unit, created_at)
-				VALUES (?, ?, ?, ?, ?, ?, ? )
-				USING TTL {{.TTL}}`,
-				id.String(), traceID, origin, ev.Name, ev.Value, ev.Unit, time.Now())
+			return b.server.session.Ingest(ctx, traceID, origin, ev)
 		}); err != nil {
-			return err
-		}
-		if err := b.server.session.ExecuteBatch(batch); err != nil {
-			// TODO: Retry and drop the samples if retries fail.
 			return err
 		}
 		b.summer.Reset()

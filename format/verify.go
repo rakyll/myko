@@ -21,9 +21,6 @@ func Verify(e *pb.Entry) error {
 		if strings.ContainsRune(ev.Name, ':') {
 			return errors.New("event name contains illegal characters")
 		}
-		if strings.ContainsRune(ev.Unit, ':') {
-			return errors.New("unit contains illegal characters")
-		}
 	}
 	return nil
 }

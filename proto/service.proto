@@ -9,17 +9,12 @@ import "google/protobuf/timestamp.proto";
 service Service {
   rpc Query(QueryRequest) returns (QueryResponse);
   rpc InsertEvents(InsertEventsRequest) returns (InsertEventsResponse);
-
-  // TODO: DeleteEvents RPC and rely on TTL.
-  rpc DeleteEvents(DeleteEventsRequest) returns (DeleteEventsResponse);
 }
 
 message Event {
     string name = 1;
 
-    string unit = 2;
-
-    double value = 3;
+    double value = 2;
 }
 
 message Entry {
@@ -59,11 +54,4 @@ message InsertEventsRequest {
 }
 
 message InsertEventsResponse {
-}
-
-message DeleteEventsRequest {
-    string origin = 1;
-}
-
-message DeleteEventsResponse {
 }

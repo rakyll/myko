@@ -20,7 +20,7 @@ func (s *Summer) Size() int {
 }
 
 func (s *Summer) Add(traceID, origin string, ev *pb.Event) {
-	key := key(traceID, origin, ev.Name, ev.Unit)
+	key := key(traceID, origin, ev.Name)
 	v, ok := s.events[key]
 	if !ok {
 		s.events[key] = ev
@@ -32,7 +32,7 @@ func (s *Summer) Add(traceID, origin string, ev *pb.Event) {
 
 func (s *Summer) ForEach(fn func(traceID, origin string, event *pb.Event) error) error {
 	for k, ev := range s.events {
-		traceID, origin, _, _ := parseKey(k)
+		traceID, origin, _ := parseKey(k)
 		return fn(traceID, origin, ev)
 	}
 	return nil
@@ -42,11 +42,11 @@ func (s *Summer) Reset() {
 	s.events = make(map[string]*pb.Event, s.cap)
 }
 
-func key(traceID, origin, name, unit string) string {
-	return traceID + ":" + origin + ":" + name + ":" + unit
+func key(traceID, origin, name string) string {
+	return traceID + ":" + origin + ":" + name
 }
 
-func parseKey(key string) (traceID, origin, name, unit string) {
+func parseKey(key string) (traceID, origin, event string) {
 	v := strings.Split(key, ":")
-	return v[0], v[1], v[2], v[3]
+	return v[0], v[1], v[2]
 }

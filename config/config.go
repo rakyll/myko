@@ -37,6 +37,22 @@ type DataConfig struct {
 	TTL time.Duration `yaml:"ttl"`
 
 	CassandraConfig CassandraConfig `yaml:"cassandra"`
+
+	KustoConfig KustoConfig `yaml:"kusto"`
+}
+
+type KustoConfig struct {
+	Endpoint string `yaml:"endpoint,omitempty"`
+
+	ClientID string `yaml:"client_id,omitempty"`
+
+	ClientSecret string `yaml:"client_secret,omitempty"`
+
+	TenantID string `yaml:"tenant_id,omitempty"`
+
+	Database string `yaml:"database,omitempty"`
+
+	Table string `yaml:"table,omitempty"`
 }
 
 type CassandraConfig struct {

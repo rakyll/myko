@@ -22,7 +22,7 @@ func main() {
 		log.Fatalf("Cannot query by origin and event: %v", err)
 	}
 	for _, ev := range resp.Events {
-		log.Printf("%v: %v%v", ev.Name, ev.Value, ev.Unit)
+		log.Printf("%v: %v", ev.Name, ev.Value)
 	}
 
 	const traceID = "0af7651916cd43dd8448eb211c80319c"
@@ -34,6 +34,6 @@ func main() {
 	}
 	log.Printf("Events collected for trace = %q", traceID)
 	for _, ev := range resp.Events {
-		log.Printf("%v: %v%v", ev.Name, ev.Value, ev.Unit)
+		log.Printf("%v: %v", ev.Name, ev.Value)
 	}
 }

@@ -129,7 +129,6 @@ var initCQLs = []string{
 		attr_key text,
 		attr_value text,
 		event text,
-		unit text, 
 		value double,
 		created_at timestamp,
 		primary key ((origin, id))

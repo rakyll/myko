@@ -38,8 +38,6 @@ func main() {
 	switch op {
 	case "insert":
 		benchmarkInserts(ctx, client)
-	case "cleanup":
-		cleanup(ctx, client)
 	default:
 		log.Fatalf("unknown benchmark op")
 	}
@@ -48,7 +46,6 @@ func main() {
 func benchmarkInserts(ctx context.Context, client pb.Service) {
 	traceIDs := IDSource{Max: traceIDCardinality}
 	eventIDs := IDSource{Max: eventCardinality}
-	unitIDs := IDSource{Max: unitCardinality}
 
 	var entries []*pb.Entry
 	for i := 0; i < events; i++ {
@@ -58,7 +55,6 @@ func benchmarkInserts(ctx context.Context, client pb.Service) {
 			Events: []*pb.Event{
 				{
 					Name:  fmt.Sprintf("event_%d", eventIDs.Next()),
-					Unit:  fmt.Sprintf("unit_%d", unitIDs.Next()),
 					Value: 10.5,
 				},
 			},
@@ -79,15 +75,6 @@ func benchmarkInserts(ctx context.Context, client pb.Service) {
 		}
 	}
 	s.print()
-}
-
-func cleanup(ctx context.Context, client pb.Service) {
-	_, err := client.DeleteEvents(ctx, &pb.DeleteEventsRequest{
-		Origin: benchmarkOrigin,
-	})
-	if err != nil {
-		log.Fatalf("Failed to cleanup: %v", err)
-	}
 }
 
 type summary struct {

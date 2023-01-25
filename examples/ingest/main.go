@@ -21,8 +21,7 @@ func main() {
 				Origin:  "create_user",
 				Events: []*pb.Event{
 					{
-						Name:  "render",
-						Unit:  "ms",
+						Name:  "render_ms",
 						Value: 2.9,
 					},
 				},
@@ -33,22 +32,18 @@ func main() {
 				Events: []*pb.Event{
 					{
 						Name:  "sql_count",
-						Unit:  "",
 						Value: 1,
 					},
 					{
-						Name:  "sql_latency",
-						Unit:  "ms",
+						Name:  "sql_latency_ms",
 						Value: 10.4,
 					},
 					{
 						Name:  "sql_count",
-						Unit:  "",
 						Value: 1,
 					},
 					{
-						Name:  "sql_latency",
-						Unit:  "ms",
+						Name:  "sql_latency_ms",
 						Value: 3.21,
 					},
 				},

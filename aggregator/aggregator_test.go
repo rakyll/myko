@@ -27,9 +27,9 @@ func TestSummer(t *testing.T) {
 				{
 					Origin: "origin_1",
 					Events: []*pb.Event{
-						{Name: "name_1", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
+						{Name: "name_1", Value: 10},
+						{Name: "name_1", Value: 10},
+						{Name: "name_1", Value: 10},
 					},
 				},
 			},
@@ -37,7 +37,7 @@ func TestSummer(t *testing.T) {
 				{
 					Origin: "origin_1",
 					Events: []*pb.Event{
-						{Name: "name_1", Unit: "unit_1", Value: 30},
+						{Name: "name_1", Value: 30},
 					},
 				},
 			},
@@ -50,36 +50,24 @@ func TestSummer(t *testing.T) {
 					TraceId: "trace_1",
 					Origin:  "origin_1",
 					Events: []*pb.Event{
-						{Name: "name_1", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
+						{Name: "name_1", Value: 10},
+						{Name: "name_1", Value: 50},
+						{Name: "name_1", Value: 100},
 					},
 				},
 				{
 					TraceId: "trace_1",
 					Origin:  "origin_2",
 					Events: []*pb.Event{
-						{Name: "name_1", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
+						{Name: "name_2", Value: 200},
 					},
 				},
 				{
 					TraceId: "trace_1",
 					Origin:  "origin_2",
 					Events: []*pb.Event{
-						{Name: "name_2", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
-					},
-				},
-				{
-					TraceId: "trace_1",
-					Origin:  "origin_2",
-					Events: []*pb.Event{
-						{Name: "name_2", Unit: "unit_1", Value: 10},
-						{Name: "name_1", Unit: "unit_2", Value: 10},
-						{Name: "name_1", Unit: "unit_1", Value: 10},
+						{Name: "name_2", Value: 200},
+						{Name: "name_1", Value: 500},
 					},
 				},
 			},
@@ -88,37 +76,30 @@ func TestSummer(t *testing.T) {
 					TraceId: "trace_1",
 					Origin:  "origin_1",
 					Events: []*pb.Event{
-						{Name: "name_1", Unit: "unit_1", Value: 30},
+						{Name: "name_1", Value: 160},
 					},
 				},
 				{
 					TraceId: "trace_1",
 					Origin:  "origin_2",
 					Events: []*pb.Event{
-						{Name: "name_1", Unit: "unit_1", Value: 60},
+						{Name: "name_1", Value: 500},
 					},
 				},
 				{
 					TraceId: "trace_1",
 					Origin:  "origin_2",
 					Events: []*pb.Event{
-						{Name: "name_2", Unit: "unit_1", Value: 20},
-					},
-				},
-				{
-					TraceId: "trace_1",
-					Origin:  "origin_2",
-					Events: []*pb.Event{
-						{Name: "name_1", Unit: "unit_2", Value: 10},
+						{Name: "name_2", Value: 400},
 					},
 				},
 			},
-			wantSize: 4,
+			wantSize: 3,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewSummer(128)
+			s := NewSummer(256)
 			for _, e := range tt.entries {
 				for _, ev := range e.Events {
 					s.Add(e.TraceId, e.Origin, ev)
@@ -154,7 +135,6 @@ func BenchmarkSummer(b *testing.B) {
 		for j := 0; j < eventCardinality; j++ {
 			ev.Events = append(ev.Events, &pb.Event{
 				Name:  fmt.Sprintf("event_%d", j),
-				Unit:  "unit",
 				Value: 1.0,
 			})
 		}
@@ -173,15 +153,12 @@ func BenchmarkSummer(b *testing.B) {
 }
 
 func (s *Summer) exists(traceID, origin string, ev *pb.Event) bool {
-	key := key(traceID, origin, ev.Name, ev.Unit)
+	key := key(traceID, origin, ev.Name)
 	v, ok := s.events[key]
 	if !ok {
 		return false
 	}
 	if v.Name != ev.Name {
-		return false
-	}
-	if v.Unit != ev.Unit {
 		return false
 	}
 	if v.Value != ev.Value {
