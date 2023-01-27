@@ -53,6 +53,7 @@ func newBatchWriter(server *Server, bufferSize int, flushInterval time.Duration)
 		server:        server,
 		bufferSize:    bufferSize,
 		flushInterval: flushInterval,
+		lastExport:    time.Now(),
 		summer:        aggregator.NewSummer(bufferSize),
 	}
 }
@@ -74,7 +75,6 @@ func (b *batchWriter) Write(e *pb.Entry) error {
 
 	for _, ev := range e.Events {
 		b.summer.Add(e.TraceId, e.Origin, ev)
-
 	}
 	return b.flushIfNeeded()
 }
@@ -86,9 +86,16 @@ func (b *batchWriter) flushIfNeeded() error {
 	if size := b.summer.Size(); size >= b.bufferSize || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
 		log.Printf("Writing %d events", size)
 
-		if err := b.summer.ForEach(func(traceID, origin string, ev *pb.Event) error {
-			return b.server.session.Ingest(ctx, traceID, origin, ev)
-		}); err != nil {
+		kEntries := make([]*kusto.KustoEntry, 0, b.summer.Size())
+		b.summer.ForEach(func(traceID, origin string, ev *pb.Event) {
+			kEntries = append(kEntries, &kusto.KustoEntry{
+				TraceID: traceID,
+				Origin:  origin,
+				Event:   ev.Name,
+				Value:   ev.Value,
+			})
+		})
+		if err := b.server.session.IngestAll(ctx, kEntries); err != nil {
 			return err
 		}
 		b.summer.Reset()

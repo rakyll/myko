@@ -30,12 +30,11 @@ func (s *Summer) Add(traceID, origin string, ev *pb.Event) {
 	}
 }
 
-func (s *Summer) ForEach(fn func(traceID, origin string, event *pb.Event) error) error {
+func (s *Summer) ForEach(fn func(traceID, origin string, event *pb.Event)) {
 	for k, ev := range s.events {
 		traceID, origin, _ := parseKey(k)
-		return fn(traceID, origin, ev)
+		fn(traceID, origin, ev)
 	}
-	return nil
 }
 
 func (s *Summer) Reset() {
