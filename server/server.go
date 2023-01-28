@@ -40,10 +40,8 @@ func (s *Server) InsertEvents(ctx context.Context, req *pb.InsertEventsRequest) 
 			return nil, err
 		}
 	}
-	for _, entry := range req.Entries {
-		if err := s.batchWriter.Write(entry); err != nil {
-			return nil, err
-		}
+	if err := s.batchWriter.Write(req.Entries); err != nil {
+		return nil, err
 	}
 	return &pb.InsertEventsResponse{}, nil
 }
@@ -69,12 +67,14 @@ type batchWriter struct {
 	server *Server
 }
 
-func (b *batchWriter) Write(e *pb.Entry) error {
+func (b *batchWriter) Write(entries []*pb.Entry) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	for _, ev := range e.Events {
-		b.summer.Add(e.TraceId, e.Origin, ev)
+	for _, entry := range entries {
+		for _, ev := range entry.Events {
+			b.summer.Add(entry.TraceId, entry.Origin, ev)
+		}
 	}
 	return b.flushIfNeeded()
 }
