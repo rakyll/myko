@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 
 	"github.com/Azure/azure-kusto-go/kusto"
 	"github.com/Azure/azure-kusto-go/kusto/ingest"
@@ -44,21 +43,30 @@ type Entry struct {
 
 func (s *Session) IngestAll(ctx context.Context, entries []*Entry) error {
 	r, w := io.Pipe()
+
+	errCh := make(chan error)
 	go func() {
 		defer w.Close()
 
 		encoder := json.NewEncoder(w)
 		for _, e := range entries {
 			if err := encoder.Encode(e); err != nil {
-				log.Printf("Failed to encode %v: %v", e, err)
+				errCh <- err
 			}
 		}
+		close(errCh)
 	}()
 	result, err := s.client.FromReader(ctx, r, ingest.FileFormat(ingest.MultiJSON))
-	if err == nil {
-		err = <-result.Wait(ctx) // TODO: Block when closing and handle retryable errors.
+	if err != nil {
+		return err
 	}
-	return err
+
+	select {
+	case err = <-result.Wait(ctx):
+		return err
+	case err = <-errCh:
+		return err
+	}
 }
 
 func (s *Session) Close() error {
