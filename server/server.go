@@ -86,9 +86,9 @@ func (b *batchWriter) flushIfNeeded() error {
 	if size := b.summer.Size(); size >= b.bufferSize || b.lastExport.Before(time.Now().Add(-1*b.flushInterval)) {
 		log.Printf("Writing %d events", size)
 
-		kEntries := make([]*kusto.KustoEntry, 0, b.summer.Size())
+		kEntries := make([]*kusto.Entry, 0, b.summer.Size())
 		b.summer.ForEach(func(traceID, origin string, ev *pb.Event) {
-			kEntries = append(kEntries, &kusto.KustoEntry{
+			kEntries = append(kEntries, &kusto.Entry{
 				TraceID: traceID,
 				Origin:  origin,
 				Event:   ev.Name,

@@ -35,14 +35,14 @@ func NewSession(dataConfig config.DataConfig) (*Session, error) {
 	}, nil
 }
 
-type KustoEntry struct {
+type Entry struct {
 	TraceID string  `json:"trace_id,omitempty"`
 	Origin  string  `json:"origin,omitempty"`
 	Event   string  `json:"event,omitempty"`
 	Value   float64 `json:"value,omitempty"`
 }
 
-func (s *Session) IngestAll(ctx context.Context, entries []*KustoEntry) error {
+func (s *Session) IngestAll(ctx context.Context, entries []*Entry) error {
 	r, w := io.Pipe()
 	go func() {
 		defer w.Close()
