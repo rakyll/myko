@@ -27,7 +27,7 @@ func main() {
 
 	flag.StringVar(&op, "op", "insert", "")
 	flag.IntVar(&n, "n", 1000, "")
-	flag.IntVar(&events, "events", 10, "")
+	flag.IntVar(&events, "events", 20, "")
 	flag.IntVar(&traceIDCardinality, "trace-id-cardinality", 100, "")
 	flag.IntVar(&eventCardinality, "event-cardinality", 20, "")
 	flag.Parse()
