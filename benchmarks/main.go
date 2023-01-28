@@ -18,7 +18,6 @@ var (
 	events             int
 	traceIDCardinality int
 	eventCardinality   int
-	unitCardinality    int
 )
 
 const benchmarkOrigin = "__reserved_myko_benchmark_origin"
@@ -31,7 +30,6 @@ func main() {
 	flag.IntVar(&events, "events", 10, "")
 	flag.IntVar(&traceIDCardinality, "trace-id-cardinality", 100, "")
 	flag.IntVar(&eventCardinality, "event-cardinality", 20, "")
-	flag.IntVar(&unitCardinality, "unit-cardinality", 10, "")
 	flag.Parse()
 
 	client := pb.NewServiceJSONClient("http://localhost:6959", &http.Client{})
@@ -49,13 +47,16 @@ func benchmarkInserts(ctx context.Context, client pb.Service) {
 
 	var entries []*pb.Entry
 	for i := 0; i < events; i++ {
+		traceID := traceIDs.Next()
+		eventID := eventIDs.Next()
+
 		entries = append(entries, &pb.Entry{
-			TraceId: fmt.Sprintf("trace_%d", traceIDs.Next()),
+			TraceId: fmt.Sprintf("trace_%d", traceID),
 			Origin:  benchmarkOrigin,
 			Events: []*pb.Event{
 				{
-					Name:  fmt.Sprintf("event_%d", eventIDs.Next()),
-					Value: 10.5,
+					Name:  fmt.Sprintf("event_%d", eventID),
+					Value: 1,
 				},
 			},
 		})
@@ -87,7 +88,7 @@ func (s *summary) emit(err error, lat time.Duration) {
 		s.errors++
 		return
 	}
-	s.latencies = append(s.latencies, float64(lat)/(1000*1000)) // in ms
+	s.latencies = append(s.latencies, float64(lat)/(1000)) // in micro secs
 }
 
 func (s *summary) print() {
@@ -116,7 +117,7 @@ func (s *summary) print() {
 			fmt.Printf("Failed to calculate %v: %v\n", t.name, err)
 			continue
 		}
-		fmt.Printf("%v: %vms\n", t.name, p)
+		fmt.Printf("%v: %vµs\n", t.name, p)
 	}
 	fmt.Printf("Errors: %v\n", s.errors)
 }
@@ -126,14 +127,14 @@ func newSummary(n int) *summary {
 }
 
 type IDSource struct {
-	Current int
+	current int
 	Max     int
 }
 
 func (s *IDSource) Next() int {
-	if s.Current == s.Max {
-		s.Current = 0
+	if s.current == s.Max {
+		s.current = 0
 	}
-	s.Current++
-	return s.Current
+	s.current++
+	return s.current
 }
