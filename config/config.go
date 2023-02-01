@@ -18,14 +18,6 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		Listen: ":6959",
-		DataConfig: DataConfig{
-			TTL: 24 * time.Hour,
-			CassandraConfig: CassandraConfig{
-				Keyspace: "myko",
-				Peers:    []string{"localhost:9042"},
-				Timeout:  30 * time.Second,
-			},
-		},
 		FlushConfig: FlushConfig{
 			BufferSize: 8 * 1024,
 			Interval:   60 * time.Second,
@@ -34,21 +26,11 @@ func DefaultConfig() Config {
 }
 
 type DataConfig struct {
-	TTL time.Duration `yaml:"ttl"`
-
-	CassandraConfig CassandraConfig `yaml:"cassandra"`
-
 	KustoConfig KustoConfig `yaml:"kusto"`
 }
 
 type KustoConfig struct {
 	Endpoint string `yaml:"endpoint,omitempty"`
-
-	ClientID string `yaml:"client_id,omitempty"`
-
-	ClientSecret string `yaml:"client_secret,omitempty"`
-
-	TenantID string `yaml:"tenant_id,omitempty"`
 
 	Database string `yaml:"database,omitempty"`
 
