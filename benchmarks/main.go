@@ -13,11 +13,11 @@ import (
 )
 
 var (
-	op                 string
-	n                  int
-	events             int
-	traceIDCardinality int
-	eventCardinality   int
+	op                string
+	n                 int
+	events            int
+	targetCardinality int
+	eventCardinality  int
 )
 
 const benchmarkOrigin = "__reserved_myko_benchmark_origin"
@@ -28,7 +28,7 @@ func main() {
 	flag.StringVar(&op, "op", "insert", "")
 	flag.IntVar(&n, "n", 1000, "")
 	flag.IntVar(&events, "events", 20, "")
-	flag.IntVar(&traceIDCardinality, "trace-id-cardinality", 100, "")
+	flag.IntVar(&targetCardinality, "target-cardinality", 100, "")
 	flag.IntVar(&eventCardinality, "event-cardinality", 20, "")
 	flag.Parse()
 
@@ -42,17 +42,17 @@ func main() {
 }
 
 func benchmarkInserts(ctx context.Context, client pb.Service) {
-	traceIDs := IDSource{Max: traceIDCardinality}
+	targetIDs := IDSource{Max: targetCardinality}
 	eventIDs := IDSource{Max: eventCardinality}
 
 	var entries []*pb.Entry
 	for i := 0; i < events; i++ {
-		traceID := traceIDs.Next()
+		targetID := targetIDs.Next()
 		eventID := eventIDs.Next()
 
 		entries = append(entries, &pb.Entry{
-			TraceId: fmt.Sprintf("trace_%d", traceID),
-			Origin:  benchmarkOrigin,
+			Target: fmt.Sprintf("target_%d", targetID),
+			Origin: benchmarkOrigin,
 			Events: []*pb.Event{
 				{
 					Name:  fmt.Sprintf("event_%d", eventID),

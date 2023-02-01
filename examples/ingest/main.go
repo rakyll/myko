@@ -11,14 +11,14 @@ import (
 func main() {
 	ctx := context.Background()
 
-	const traceID = "0af7651916cd43dd8448eb211c80319c"
+	const target = "cluster-demo"
 
 	client := pb.NewServiceJSONClient("http://localhost:6959", &http.Client{})
 	_, err := client.InsertEvents(ctx, &pb.InsertEventsRequest{
 		Entries: []*pb.Entry{
 			{
-				TraceId: traceID,
-				Origin:  "create_user",
+				Target: target,
+				Origin: "create_user",
 				Events: []*pb.Event{
 					{
 						Name:  "render_ms",
@@ -27,8 +27,8 @@ func main() {
 				},
 			},
 			{
-				TraceId: traceID,
-				Origin:  "create_user",
+				Target: target,
+				Origin: "create_user",
 				Events: []*pb.Event{
 					{
 						Name:  "sql_count",

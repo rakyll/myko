@@ -8,64 +8,34 @@ myko is a simple attribution engine. It can be used for several use cases such a
 * Estimating costs and billing.
 * Capacity management and forecasting capacity needs.
 
-## Usage
-
-myko currently only supports Cassandra and Cassandra-compatible datastores.
-
-``` bash
-$ cat config/config.yaml
-data:
-    cassandra:
-        peers:
-            - node-0.cassandra.host
-            - node-1.cassandra.host
-            - node-2.cassandra.host
-        username: cassandra
-        password: *********
-
-$ docker run -it -p 6959:6959 -v $(pwd)/config:/config \
-    public.ecr.aws/q1p8v8z2/myko:latest -config /config/config.yaml
-```
-
-Skip SSL host verification if you are using Cosmos with Cassandra API:
-
-``` bash
-$ cat config/config.yaml
-data:
-    cassandra:
-        peers:
-            - name.cassandra.cosmos.azure.com:10350
-        username: username
-        password: *********
-        ssl_skip_verify: true
-```
-
 ## Concepts
 
 myko has three fundamental concepts:
 
+* **Origin**: Origin of the event. It can be a request handler, a background job,
+or an identifier like a customer ID.
 * **Event**: Any measurable action identifiable with a name & unit. It could be anything
 defined by the user, such as a query to MySQL, a checkout transaction,
 an expensive encoding job.
-* **Origin**: Origin of the event. It can be a request handler, a background job,
-or an identifier like a customer ID.
-* **Trace ID**: Used optionally to debug events happening in the lifetime of a debug request.
+* **Target**: A target downstream resource to be impacted by the event created at origin, e.g.
+a database cluster, a storage backend, or any commonly shared service.
+
 
 For example, while loading navigation bar, the following events can be collected:
 
 ```
-{ trace_id: "xxx", origin: "site_navbar", event_name: "render", unit: "ms", value: 23.1 }
-{ trace_id: "xxx", origin: "site_navbar", event_name: "sql_query_latency", unit: "ms", value: 40.5 }
-{ trace_id: "xxx", origin: "site_navbar", event_name: "sql_query_latency", unit: "ms", value: 12.5 }
-{ trace_id: "xxx", origin: "site_navbar", event_name: "sql_query_latency", unit: "ms", value: 11.5 }
-{ trace_id: "xxx", origin: "site_navbar", event_name: "sql_query_count", unit: "", value: 3 }
+{ target: "webserver", origin: "site_navbar", event_name: "render_ms", value: 23.1 }
+{ target: "webserver-mysql", origin: "site_navbar", event_name: "sql_query_latency_ms", value: 40.5 }
+{ target: "webserver-mysql", origin: "site_navbar", event_name: "sql_query_latency_ms", value: 12.5 }
+{ target: "webserver-mysql", origin: "site_navbar", event_name: "sql_query_latency_ms", value: 11.5 }
+{ target: "webserver-mysql", origin: "site_navbar", event_name: "sql_query_count", value: 3 }
 ```
 
-myko ingests the events and can report:
+myko ingests the above events and can report:
 
-* The total cost of rendering and SQL querying in the lifetime of trace ID, xxx.
-* The highest contributor origin of database load.
-* Events started at origins to help you analyze dependencies between services or components.
+* How site navigation impact total rendering hours spent on the webserver.
+* How site navigation impact the total load on webserver-mysql instance.
+* What type of events started at site navigation and what resources they are targeting.
 
 See the [examples](https://github.com/rakyll/myko/tree/main/examples/) directory for example programs.
 
@@ -89,17 +59,8 @@ myko is not a timeseries database and doesn't support all aggregations metric
 collection systems provide. myko ingests events and aggregates them as sums.
 Aggregation happens server side in a time window which can be configurable
 by users. In the aggregation window, myko aggregates all incoming events into a sum
-by trace ID, origin, event name & unit. Depending of the cardinality of these
+by target, origin, event name & unit. Depending of the cardinality of these
 attributes, thousands of events can be aggregated to a few data points.
-
-**How is myko different than distributed tracing systems?**
-
-myko is not a distributed tracing system. It doesn't store distributed trace spans.
-We expect myko to be used together with distributed tracing systems. We accept
-a trace ID in cases where users want to correlate their traces with myko data.
-We recommend ingesting trace ID only for debugging purposes or if the traces
-are aggressively downsampled. Trace IDs can increase the cardinality significantly
-and can cause performance regressions when querying.
 
 **Does myko have any cardinality limits?**
 
@@ -109,6 +70,5 @@ new compaction methods where possible.
 
 **Do you have any plans for other datastores?**
 
-We are initially only supporting Cassandra or Cassandra-compatible datastores
-but would like to introduce support for other datastores if we can
-make maintenance commitments.
+We are initially only supporting Kusto but would like to introduce 
+support for other datastores if we can make maintenance commitments.

@@ -25,14 +25,14 @@ func main() {
 		log.Printf("%v: %v", ev.Name, ev.Value)
 	}
 
-	const traceID = "0af7651916cd43dd8448eb211c80319c"
+	const target = "cluster-demo"
 	resp, err = client.Query(ctx, &pb.QueryRequest{
-		TraceId: traceID,
+		Target: target,
 	})
 	if err != nil {
-		log.Fatalf("Cannot query by trace: %v", err)
+		log.Fatalf("Cannot query by target: %v", err)
 	}
-	log.Printf("Events collected for trace = %q", traceID)
+	log.Printf("Events collected for target = %q", target)
 	for _, ev := range resp.Events {
 		log.Printf("%v: %v", ev.Name, ev.Value)
 	}

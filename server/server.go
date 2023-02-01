@@ -73,7 +73,7 @@ func (b *batchWriter) Write(entries []*pb.Entry) error {
 
 	for _, entry := range entries {
 		for _, ev := range entry.Events {
-			b.summer.Add(entry.TraceId, entry.Origin, ev)
+			b.summer.Add(entry.Target, entry.Origin, ev)
 		}
 	}
 	return b.flushIfNeeded()
@@ -87,12 +87,12 @@ func (b *batchWriter) flushIfNeeded() error {
 		log.Printf("Writing %d events", size)
 
 		kEntries := make([]*kusto.Entry, 0, b.summer.Size())
-		b.summer.ForEach(func(traceID, origin string, ev *pb.Event) {
+		b.summer.ForEach(func(target, origin string, ev *pb.Event) {
 			kEntries = append(kEntries, &kusto.Entry{
-				TraceID: traceID,
-				Origin:  origin,
-				Event:   ev.Name,
-				Value:   ev.Value,
+				Target: target,
+				Origin: origin,
+				Event:  ev.Name,
+				Value:  ev.Value,
 			})
 		})
 		if err := b.server.session.IngestAll(ctx, kEntries); err != nil {

@@ -14,8 +14,8 @@ func Verify(e *pb.Entry) error {
 	if strings.ContainsRune(e.Origin, ':') {
 		return errors.New("origin contains illegal characters")
 	}
-	if strings.ContainsRune(e.TraceId, ':') {
-		return errors.New("trace ID contains illegal characters")
+	if strings.ContainsRune(e.Target, ':') {
+		return errors.New("target contains illegal characters")
 	}
 	for _, ev := range e.Events {
 		if strings.ContainsRune(ev.Name, ':') {

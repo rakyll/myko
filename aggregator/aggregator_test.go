@@ -20,35 +20,12 @@ func TestSummer(t *testing.T) {
 			wantEntries: []*pb.Entry{},
 			wantSize:    0,
 		},
-		// TODO: Add a case with no trace IDs.
-		{
-			name: "no trace",
-			entries: []*pb.Entry{
-				{
-					Origin: "origin_1",
-					Events: []*pb.Event{
-						{Name: "name_1", Value: 10},
-						{Name: "name_1", Value: 10},
-						{Name: "name_1", Value: 10},
-					},
-				},
-			},
-			wantEntries: []*pb.Entry{
-				{
-					Origin: "origin_1",
-					Events: []*pb.Event{
-						{Name: "name_1", Value: 30},
-					},
-				},
-			},
-			wantSize: 1,
-		},
 		{
 			name: "basic",
 			entries: []*pb.Entry{
 				{
-					TraceId: "trace_1",
-					Origin:  "origin_1",
+					Target: "cluster1",
+					Origin: "origin_1",
 					Events: []*pb.Event{
 						{Name: "name_1", Value: 10},
 						{Name: "name_1", Value: 50},
@@ -56,15 +33,15 @@ func TestSummer(t *testing.T) {
 					},
 				},
 				{
-					TraceId: "trace_1",
-					Origin:  "origin_2",
+					Target: "cluster1",
+					Origin: "origin_2",
 					Events: []*pb.Event{
 						{Name: "name_2", Value: 200},
 					},
 				},
 				{
-					TraceId: "trace_1",
-					Origin:  "origin_2",
+					Target: "cluster1",
+					Origin: "origin_2",
 					Events: []*pb.Event{
 						{Name: "name_2", Value: 200},
 						{Name: "name_1", Value: 500},
@@ -73,22 +50,22 @@ func TestSummer(t *testing.T) {
 			},
 			wantEntries: []*pb.Entry{
 				{
-					TraceId: "trace_1",
-					Origin:  "origin_1",
+					Target: "cluster1",
+					Origin: "origin_1",
 					Events: []*pb.Event{
 						{Name: "name_1", Value: 160},
 					},
 				},
 				{
-					TraceId: "trace_1",
-					Origin:  "origin_2",
+					Target: "cluster1",
+					Origin: "origin_2",
 					Events: []*pb.Event{
 						{Name: "name_1", Value: 500},
 					},
 				},
 				{
-					TraceId: "trace_1",
-					Origin:  "origin_2",
+					Target: "cluster1",
+					Origin: "origin_2",
 					Events: []*pb.Event{
 						{Name: "name_2", Value: 400},
 					},
@@ -102,7 +79,7 @@ func TestSummer(t *testing.T) {
 			s := NewSummer(256)
 			for _, e := range tt.entries {
 				for _, ev := range e.Events {
-					s.Add(e.TraceId, e.Origin, ev)
+					s.Add(e.Target, e.Origin, ev)
 				}
 			}
 			if size := s.Size(); size != tt.wantSize {
@@ -110,7 +87,7 @@ func TestSummer(t *testing.T) {
 			}
 			for _, wantEntry := range tt.wantEntries {
 				for _, wantEvent := range wantEntry.Events {
-					if !s.exists(wantEntry.TraceId, wantEntry.Origin, wantEvent) {
+					if !s.exists(wantEntry.Target, wantEntry.Origin, wantEvent) {
 						t.Errorf("Can't find the event: %v", wantEvent)
 					}
 				}
@@ -128,8 +105,8 @@ func BenchmarkSummer(b *testing.B) {
 	entries := make([]*pb.Entry, 0, originCardinality)
 	for i := 0; i < originCardinality; i++ {
 		ev := &pb.Entry{
-			TraceId: "xxx",
-			Origin:  fmt.Sprintf("origin_%d", i),
+			Target: "xxx",
+			Origin: fmt.Sprintf("origin_%d", i),
 		}
 		ev.Events = make([]*pb.Event, 0, eventCardinality)
 		for j := 0; j < eventCardinality; j++ {
@@ -146,14 +123,14 @@ func BenchmarkSummer(b *testing.B) {
 		summer := NewSummer(1024)
 		for _, entry := range entries {
 			for _, ev := range entry.Events {
-				summer.Add(entry.TraceId, entry.Origin, ev)
+				summer.Add(entry.Target, entry.Origin, ev)
 			}
 		}
 	}
 }
 
-func (s *Summer) exists(traceID, origin string, ev *pb.Event) bool {
-	key := key(traceID, origin, ev.Name)
+func (s *Summer) exists(target, origin string, ev *pb.Event) bool {
+	key := key(target, origin, ev.Name)
 	v, ok := s.events[key]
 	if !ok {
 		return false

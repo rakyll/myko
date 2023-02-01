@@ -35,10 +35,10 @@ func NewSession(dataConfig config.DataConfig) (*Session, error) {
 }
 
 type Entry struct {
-	TraceID string  `json:"trace_id,omitempty"`
-	Origin  string  `json:"origin,omitempty"`
-	Event   string  `json:"event,omitempty"`
-	Value   float64 `json:"value,omitempty"`
+	Target string  `json:"target,omitempty"`
+	Origin string  `json:"origin,omitempty"`
+	Event  string  `json:"event,omitempty"`
+	Value  float64 `json:"value,omitempty"`
 }
 
 func (s *Session) IngestAll(ctx context.Context, entries []*Entry) error {

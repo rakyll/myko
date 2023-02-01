@@ -125,7 +125,7 @@ var initCQLs = []string{
 	`CREATE TABLE IF NOT EXISTS {{.Keyspace}}.events (
 		id uuid,
 		origin text,
-		trace_id text,
+		target text,
 		attr_key text,
 		attr_value text,
 		event text,
@@ -133,7 +133,7 @@ var initCQLs = []string{
 		created_at timestamp,
 		primary key ((origin, id))
 	);`,
-	`CREATE INDEX IF NOT EXISTS traceIndex ON {{.Keyspace}}.events ( trace_id );`,
+	`CREATE INDEX IF NOT EXISTS targetIndex ON {{.Keyspace}}.events ( target );`,
 	`CREATE INDEX IF NOT EXISTS eventIndex ON {{.Keyspace}}.events ( event );`,
 	`CREATE INDEX IF NOT EXISTS createdAtIndex ON {{.Keyspace}}.events ( created_at );`,
 }
